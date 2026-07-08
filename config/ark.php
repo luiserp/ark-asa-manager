@@ -47,6 +47,18 @@ return [
         'admin_password' => env('ARK_ADMIN_PASSWORD'),
         'server_password' => env('ARK_SERVER_PASSWORD'),
         'max_players' => 70,
+        'battleye_enabled' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Manager Daemon Settings
+    |--------------------------------------------------------------------------
+    */
+
+    'manager' => [
+        'status_interval' => (int) env('ARK_MANAGER_STATUS_INTERVAL', 5),
+        'subscription_check_interval' => (int) env('ARK_MANAGER_SUBSCRIPTION_CHECK_INTERVAL', 30),
     ],
 
     'maps' => [

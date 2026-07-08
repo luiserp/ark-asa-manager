@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $admin_password
  * @property string|null $server_password
  * @property int $max_players
+ * @property bool $battleye_enabled
  * @property array<string, string>|null $extra_args
  * @property bool $is_active
  * @property Carbon|null $created_at
@@ -43,6 +44,7 @@ class GameServerProfile extends Model
         'admin_password',
         'server_password',
         'max_players',
+        'battleye_enabled',
         'extra_args',
         'is_active',
     ];
@@ -54,6 +56,7 @@ class GameServerProfile extends Model
             'query_port' => 'integer',
             'rcon_port' => 'integer',
             'max_players' => 'integer',
+            'battleye_enabled' => 'boolean',
             'extra_args' => 'array',
             'is_active' => 'boolean',
             'admin_password' => 'encrypted',

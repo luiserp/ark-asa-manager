@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { BookOpen, ChevronsUpDown, FileCode, FolderGit2, Info, LayoutGrid, Layers, Server } from '@lucide/vue';
+import { BookOpen, ChevronsUpDown, FileCode, FolderGit2, FolderOpen, Info, LayoutGrid, Layers, Server } from '@lucide/vue';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
+import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -75,6 +76,11 @@ const serverNavItems = computed<NavItem[]>(() => {
             icon: Info,
         },
         {
+            title: 'Files',
+            href: ServerFilesController.index.url({ server: activeServer.value.id }),
+            icon: FolderOpen,
+        },
+        {
             title: 'Profiles',
             href: profilesIndex(),
             icon: Layers,
@@ -107,14 +113,16 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
-function switchServer(serverId: string) {
+function switchServer(value: unknown) {
+    const serverId = String(value);
     if (activeServer.value?.id === serverId) return;
     router.patch(GameServerController.toggleActive.url({ server: serverId }), {}, {
         preserveScroll: true,
     });
 }
 
-function switchProfile(profileId: string) {
+function switchProfile(value: unknown) {
+    const profileId = String(value);
     if (activeProfile.value?.id === profileId) return;
     router.patch(GameServerProfileController.toggleActive.url({ profile: profileId }), {}, {
         preserveScroll: true,
@@ -163,7 +171,7 @@ function switchProfile(profileId: string) {
                         </DropdownMenu>
                     </SidebarMenuItem>
                 </SidebarMenu>
-                <SidebarMenu v-if="activeServer">
+                <SidebarMenu v-if="activeServer" class="pl-4">
                     <SidebarMenuItem v-for="item in serverNavItems" :key="item.title">
                         <SidebarMenuButton as-child :tooltip="item.title">
                             <Link :href="item.href">
@@ -200,7 +208,7 @@ function switchProfile(profileId: string) {
                         </DropdownMenu>
                     </SidebarMenuItem>
                 </SidebarMenu>
-                <SidebarMenu v-if="activeProfile">
+                <SidebarMenu v-if="activeProfile" class="pl-4">
                     <SidebarMenuItem v-for="item in profileNavItems" :key="item.title">
                         <SidebarMenuButton as-child :tooltip="item.title">
                             <Link :href="item.href">

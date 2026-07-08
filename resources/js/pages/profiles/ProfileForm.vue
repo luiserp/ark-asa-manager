@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { Form } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface ProfileFormData {
     name?: string;
@@ -15,14 +17,17 @@ interface ProfileFormData {
     admin_password?: string | null;
     server_password?: string | null;
     max_players?: number;
+    battleye_enabled?: boolean;
 }
 
-defineProps<{
+const props = defineProps<{
     formAction: { action: string; method: string };
     values: ProfileFormData;
     maps: Record<string, string>;
     submitLabel: string;
 }>();
+
+const battleyeEnabled = ref(props.values.battleye_enabled ?? true);
 </script>
 
 <template>
@@ -114,6 +119,19 @@ defineProps<{
                     <Input id="server_password" name="server_password" type="password" :default-value="values.server_password ?? ''" placeholder="Leave blank for public" />
                     <InputError :message="errors.server_password" />
                 </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <Switch
+                    id="battleye_enabled"
+                    :checked="battleyeEnabled"
+                    @update:checked="battleyeEnabled = $event"
+                />
+                <input type="hidden" name="battleye_enabled" :value="battleyeEnabled ? '1' : '0'" />
+                <Label for="battleye_enabled" class="cursor-pointer">
+                    BattlEye Anti-Cheat
+                    <span class="ml-1 text-xs text-muted-foreground">(disable for modding/dev)</span>
+                </Label>
             </div>
         </fieldset>
 

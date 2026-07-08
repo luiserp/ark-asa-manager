@@ -5,6 +5,7 @@ use App\Http\Controllers\GameServerController;
 use App\Http\Controllers\GameServerProfileController;
 use App\Http\Controllers\ProfileConfigController;
 use App\Http\Controllers\ServerDetailController;
+use App\Http\Controllers\ServerFilesController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -25,11 +26,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('servers', GameServerController::class)->except(['show']);
 
     Route::get('servers/{server}/detail', [ServerDetailController::class, 'index'])->name('servers.detail');
-    Route::post('servers/{server}/status', [ServerDetailController::class, 'status'])->name('servers.status');
     Route::post('servers/{server}/install', [ServerDetailController::class, 'install'])->name('servers.install');
     Route::post('servers/{server}/start', [ServerDetailController::class, 'start'])->name('servers.start');
     Route::post('servers/{server}/stop', [ServerDetailController::class, 'stop'])->name('servers.stop');
-    Route::post('servers/{server}/logs', [ServerDetailController::class, 'logs'])->name('servers.logs');
+    Route::post('servers/{server}/leave', [ServerDetailController::class, 'leave'])->name('servers.leave');
+
+    Route::get('servers/{server}/files', [ServerFilesController::class, 'index'])->name('servers.files');
+    Route::get('servers/{server}/files/read', [ServerFilesController::class, 'read'])->name('servers.files.read');
+    Route::post('servers/{server}/files/write', [ServerFilesController::class, 'write'])->name('servers.files.write');
+    Route::get('servers/{server}/files/download', [ServerFilesController::class, 'download'])->name('servers.files.download');
 
     Route::resource('profiles', GameServerProfileController::class)->except(['show']);
     Route::patch('profiles/{profile}/toggle-active', [GameServerProfileController::class, 'toggleActive'])->name('profiles.toggle-active');

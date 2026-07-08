@@ -99,10 +99,11 @@ class ArkServerService
      * Start the ARK server with optional map and flags.
      *
      * @param  array<string, string>  $options
+     * @param  array<int, string>  $flags  CLI flags like -NoBattlEye
      */
-    public function start(string $map = 'TheIsland_WP', array $options = []): array
+    public function start(string $map = 'TheIsland_WP', array $options = [], array $flags = []): array
     {
-        $serverArgs = $this->buildServerArgs($map, $options);
+        $serverArgs = $this->buildServerArgs($map, $options, $flags);
 
         $command = sprintf(
             'mkdir -p %s && cd %s && nohup xvfb-run --auto-servernum %s %s/%s %s > %s/server_$(date +%%Y%%m%%d_%%H%%M%%S).log 2>&1 & echo $!',
@@ -136,13 +137,14 @@ class ArkServerService
      * Restart the server (stop then start).
      *
      * @param  array<string, string>  $options
+     * @param  array<int, string>  $flags
      */
-    public function restart(string $map = 'TheIsland_WP', array $options = []): array
+    public function restart(string $map = 'TheIsland_WP', array $options = [], array $flags = []): array
     {
         $this->stop();
         sleep(2);
 
-        return $this->start($map, $options);
+        return $this->start($map, $options, $flags);
     }
 
     /**
@@ -198,14 +200,21 @@ class ArkServerService
     }
 
     /**
-     * Get recent log output from the ARK server log.
+     * Get recent output from the ARK engine log (ShooterGame.log).
      */
     public function logs(int $lines = 50): array
     {
         $arkLogPath = "{$this->serverDir}/ShooterGame/Saved/Logs/ShooterGame.log";
-        $fallbackCommand = "find {$this->logsDir} -name '*.log' -printf '%T@ %p\\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- | xargs tail -n {$lines} 2>/dev/null";
 
-        $command = "if [ -f {$arkLogPath} ]; then tail -n {$lines} {$arkLogPath}; else {$fallbackCommand}; fi";
+        return $this->ssh->execute("tail -n {$lines} {$arkLogPath} 2>/dev/null || echo 'No engine logs available.'");
+    }
+
+    /**
+     * Get recent output from the Wine/Proton process console log (server_*.log).
+     */
+    public function consoleLogs(int $lines = 50): array
+    {
+        $command = "find {$this->logsDir} -name 'server_*.log' -printf '%T@ %p\\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- | xargs tail -n {$lines} 2>/dev/null || echo 'No console logs available.'";
 
         return $this->ssh->execute($command);
     }
@@ -273,7 +282,11 @@ class ArkServerService
     /**
      * @param  array<string, string>  $options
      */
-    private function buildServerArgs(string $map, array $options): string
+    /**
+     * @param  array<string, string>  $options
+     * @param  array<int, string>  $flags
+     */
+    private function buildServerArgs(string $map, array $options, array $flags = []): string
     {
         $defaults = [
             'SessionName' => 'ArkServer',
@@ -288,6 +301,10 @@ class ArkServerService
         $args = $map.'?listen';
         foreach ($merged as $key => $value) {
             $args .= "?{$key}={$value}";
+        }
+
+        if ($flags) {
+            $args .= ' '.implode(' ', $flags);
         }
 
         return $args;

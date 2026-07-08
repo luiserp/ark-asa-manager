@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Table,
     TableBody,
@@ -46,12 +47,14 @@ interface GameServer {
     is_active: boolean;
 }
 
-defineProps<{
+const props = defineProps<{
     servers: GameServer[];
 }>();
 
-function toggleActive(server: GameServer) {
-    router.patch(GameServerController.toggleActive.url({ server: server.id }), {}, {
+const activeServerId = computed(() => props.servers.find(s => s.is_active)?.id ?? '');
+
+function setActive(serverId: string) {
+    router.patch(GameServerController.toggleActive.url({ server: serverId }), {}, {
         preserveScroll: true,
     });
 }
@@ -86,7 +89,7 @@ function replicateServer(server: GameServer) {
             </Button>
         </div>
 
-        <div v-else class="rounded-xl border">
+        <RadioGroup :model-value="activeServerId" @update:model-value="setActive($event as string)" class="rounded-xl border">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -103,10 +106,7 @@ function replicateServer(server: GameServer) {
                         </TableCell>
                         <TableCell>{{ server.host }}:{{ server.port }}</TableCell>
                         <TableCell>
-                            <Switch
-                                :model-value="server.is_active"
-                                @update:model-value="toggleActive(server)"
-                            />
+                            <RadioGroupItem :value="server.id" />
                         </TableCell>
                         <TableCell class="text-right">
                             <div class="flex items-center justify-end gap-2">
@@ -145,6 +145,6 @@ function replicateServer(server: GameServer) {
                     </TableRow>
                 </TableBody>
             </Table>
-        </div>
+        </RadioGroup>
     </div>
 </template>

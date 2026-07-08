@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import echo from '@/echo';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
 import Heading from '@/components/Heading.vue';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { index as serversIndex } from '@/routes/servers';
-import { Play, Square, Download, RefreshCw, Loader2, Cpu, MemoryStick, HardDrive, Users, Clock, Terminal, ScrollText } from '@lucide/vue';
+import { Play, Square, Download, Loader2, Cpu, MemoryStick, HardDrive, Users, Clock, Terminal, ScrollText, MonitorCog, Eye } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -44,6 +44,11 @@ interface ServerStatus {
     maxPlayers?: number | null;
 }
 
+interface PresenceUser {
+    id: number;
+    name: string;
+}
+
 const status = ref<ServerStatus>({
     installed: false,
     running: false,
@@ -53,39 +58,75 @@ const status = ref<ServerStatus>({
 
 const taskOutput = ref<string[]>([]);
 const serverLogs = ref('');
+const consoleLogs = ref('');
 const activeTask = ref<string | null>(null);
 const loadingStatus = ref(true);
-const loadingLogs = ref(false);
 const liveOutputContainer = ref<HTMLElement | null>(null);
+const viewers = ref<PresenceUser[]>([]);
 
-let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+const uptimeSeconds = ref(0);
+let uptimeInterval: ReturnType<typeof setInterval> | null = null;
+
+function parseUptimeToSeconds(uptime: string): number {
+    const parts = uptime.trim().split(/[-:]/).reverse();
+    let seconds = 0;
+    if (parts[0]) seconds += parseInt(parts[0]);
+    if (parts[1]) seconds += parseInt(parts[1]) * 60;
+    if (parts[2]) seconds += parseInt(parts[2]) * 3600;
+    if (parts[3]) seconds += parseInt(parts[3]) * 86400;
+    return seconds;
+}
+
+function formatUptime(totalSeconds: number): string {
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    if (days > 0) {
+        return `${days}d ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+const displayUptime = computed(() => {
+    if (!status.value.running || uptimeSeconds.value === 0) return '—';
+    return formatUptime(uptimeSeconds.value);
+});
+
+function syncUptime(uptime: string | null) {
+    if (!uptime) {
+        uptimeSeconds.value = 0;
+        return;
+    }
+    uptimeSeconds.value = parseUptimeToSeconds(uptime);
+}
+
+function startUptimeTicker() {
+    if (uptimeInterval) return;
+    uptimeInterval = setInterval(() => {
+        if (status.value.running && uptimeSeconds.value > 0) {
+            uptimeSeconds.value++;
+        }
+    }, 1000);
+}
+
+function stopUptimeTicker() {
+    if (uptimeInterval) {
+        clearInterval(uptimeInterval);
+        uptimeInterval = null;
+    }
+}
+
 let csrfToken = '';
 
 const fetchHeaders = {
     'Accept': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
 };
-
-function requestStatus() {
-    loadingStatus.value = true;
-    fetch(ServerDetailController.status.url({ server: props.server.id }), {
-        method: 'POST',
-        headers: { ...fetchHeaders, 'X-CSRF-TOKEN': csrfToken },
-    }).catch(() => {
-        loadingStatus.value = false;
-    });
-}
-
-function requestLogs() {
-    loadingLogs.value = true;
-    serverLogs.value = '';
-    fetch(ServerDetailController.logs.url({ server: props.server.id }), {
-        method: 'POST',
-        headers: { ...fetchHeaders, 'X-CSRF-TOKEN': csrfToken },
-    }).catch(() => {
-        loadingLogs.value = false;
-    });
-}
 
 function dispatchTask(task: string) {
     activeTask.value = task;
@@ -103,6 +144,7 @@ function dispatchTask(task: string) {
     });
 }
 
+
 function scrollToBottom() {
     nextTick(() => {
         if (liveOutputContainer.value) {
@@ -111,47 +153,61 @@ function scrollToBottom() {
     });
 }
 
+function notifyLeave() {
+    const url = ServerDetailController.leave.url({ server: props.server.id });
+    const data = new FormData();
+    data.append('_token', csrfToken);
+    navigator.sendBeacon(url, data);
+}
+
 onMounted(() => {
     csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-    requestStatus();
 
-    statusPollInterval = setInterval(() => {
-        if (!activeTask.value) {
-            requestStatus();
-        }
-    }, 30000);
-
-    echo.private(`server.${props.server.id}`)
+    echo.join(`server.${props.server.id}`)
+        .here((users: PresenceUser[]) => {
+            viewers.value = users;
+        })
+        .joining((user: PresenceUser) => {
+            viewers.value.push(user);
+        })
+        .leaving((user: PresenceUser) => {
+            viewers.value = viewers.value.filter(v => v.id !== user.id);
+        })
         .listen('.ServerStatusUpdated', (e: ServerStatus) => {
             status.value = e;
             loadingStatus.value = false;
+            syncUptime(e.uptime);
+            if (e.running) {
+                startUptimeTicker();
+            } else {
+                stopUptimeTicker();
+                uptimeSeconds.value = 0;
+            }
+        })
+        .listen('.ServerLogsUpdated', (e: { lines: string }) => {
+            serverLogs.value = e.lines;
+        })
+        .listen('.ServerConsoleUpdated', (e: { lines: string }) => {
+            consoleLogs.value = e.lines;
         })
         .listen('.ServerTaskOutput', (e: { task: string; line: string; type: string }) => {
-            if (e.task === 'logs') {
-                serverLogs.value += (serverLogs.value ? '\n' : '') + e.line;
-                loadingLogs.value = false;
-            } else {
-                taskOutput.value.push(e.line);
-                scrollToBottom();
-            }
+            taskOutput.value.push(e.line);
+            scrollToBottom();
         })
         .listen('.ServerTaskCompleted', (e: { task: string; success: boolean; exitCode: number }) => {
-            if (e.task === 'logs') {
-                loadingLogs.value = false;
-                return;
-            }
-
             const label = e.success ? 'completed successfully' : `failed (exit ${e.exitCode})`;
             taskOutput.value.push(`--- ${e.task} ${label} ---`);
             activeTask.value = null;
             scrollToBottom();
-
-            setTimeout(() => requestStatus(), 2000);
         });
+
+    window.addEventListener('beforeunload', notifyLeave);
 });
 
 onUnmounted(() => {
-    if (statusPollInterval) clearInterval(statusPollInterval);
+    stopUptimeTicker();
+    window.removeEventListener('beforeunload', notifyLeave);
+    notifyLeave();
     echo.leave(`server.${props.server.id}`);
 });
 </script>
@@ -172,10 +228,14 @@ onUnmounted(() => {
                 <Badge v-else-if="status.installed" variant="secondary">Stopped</Badge>
                 <Badge v-else variant="outline">Not Installed</Badge>
 
-
                 <Badge v-if="activeTask" variant="default">
                     <Loader2 class="mr-1 h-3 w-3 animate-spin" />
                     {{ activeTask }}...
+                </Badge>
+
+                <Badge v-if="viewers.length > 0" variant="outline" class="gap-1">
+                    <Eye class="h-3 w-3" />
+                    {{ viewers.length }}
                 </Badge>
             </div>
         </div>
@@ -244,8 +304,8 @@ onUnmounted(() => {
                     <Clock class="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div class="text-xl font-bold">
-                        {{ status.uptime ?? '—' }}
+                    <div class="text-xl font-bold tabular-nums">
+                        {{ displayUptime }}
                     </div>
                 </CardContent>
             </Card>
@@ -279,7 +339,7 @@ onUnmounted(() => {
             <div class="flex items-center gap-2">
                 <Button
                     variant="outline"
-                    :disabled="!activeTask"
+                    :disabled="!!activeTask"
                     @click="dispatchTask('install')"
                 >
                     <Loader2 v-if="activeTask === 'install'" class="mr-2 h-4 w-4 animate-spin" />
@@ -287,12 +347,6 @@ onUnmounted(() => {
                     {{ status.installed ? 'Update' : 'Install' }}
                 </Button>
             </div>
-
-            <Separator orientation="vertical" class="mx-1 h-8" />
-
-            <Button variant="ghost" size="icon" @click="requestStatus" :disabled="loadingStatus">
-                <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loadingStatus }" />
-            </Button>
         </div>
 
         <!-- Tabbed Output Panel -->
@@ -305,7 +359,11 @@ onUnmounted(() => {
                     </TabsTrigger>
                     <TabsTrigger value="logs">
                         <ScrollText class="mr-2 h-4 w-4" />
-                        Server Logs
+                        Engine Logs
+                    </TabsTrigger>
+                    <TabsTrigger value="console">
+                        <MonitorCog class="mr-2 h-4 w-4" />
+                        Console
                     </TabsTrigger>
                 </TabsList>
 
@@ -317,11 +375,6 @@ onUnmounted(() => {
                         @click="taskOutput = []"
                     >
                         Clear
-                    </Button>
-                    <Button variant="ghost" size="sm" @click="requestLogs" :disabled="loadingLogs">
-                        <Loader2 v-if="loadingLogs" class="mr-2 h-3 w-3 animate-spin" />
-                        <RefreshCw v-else class="mr-2 h-3 w-3" />
-                        Fetch Logs
                     </Button>
                 </div>
             </div>
@@ -347,7 +400,16 @@ onUnmounted(() => {
                     class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-green-400"
                 >
                     <pre v-if="serverLogs" class="whitespace-pre-wrap">{{ serverLogs }}</pre>
-                    <p v-else class="text-gray-500">Click "Fetch Logs" to load server logs.</p>
+                    <p v-else class="text-gray-500">Waiting for engine logs...</p>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="console" class="mt-2 min-h-0 flex-1">
+                <div
+                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-amber-400"
+                >
+                    <pre v-if="consoleLogs" class="whitespace-pre-wrap">{{ consoleLogs }}</pre>
+                    <p v-else class="text-gray-500">Waiting for console output...</p>
                 </div>
             </TabsContent>
         </Tabs>

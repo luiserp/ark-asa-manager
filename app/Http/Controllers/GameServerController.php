@@ -81,11 +81,11 @@ class GameServerController extends Controller
     public function toggleActive(GameServer $server): RedirectResponse
     {
         if ($server->is_active) {
-            $server->update(['is_active' => false]);
-        } else {
-            GameServer::where('is_active', true)->update(['is_active' => false]);
-            $server->update(['is_active' => true]);
+            return back();
         }
+
+        GameServer::where('is_active', true)->update(['is_active' => false]);
+        $server->update(['is_active' => true]);
 
         return back();
     }

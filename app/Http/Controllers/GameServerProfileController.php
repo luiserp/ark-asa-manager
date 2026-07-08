@@ -72,14 +72,13 @@ class GameServerProfileController extends Controller
 
     public function toggleActive(GameServerProfile $profile): RedirectResponse
     {
-        $server = $this->activeServer();
-
         if ($profile->is_active) {
-            $profile->update(['is_active' => false]);
-        } else {
-            $server->profiles()->where('is_active', true)->update(['is_active' => false]);
-            $profile->update(['is_active' => true]);
+            return back();
         }
+
+        $server = $this->activeServer();
+        $server->profiles()->where('is_active', true)->update(['is_active' => false]);
+        $profile->update(['is_active' => true]);
 
         return back();
     }

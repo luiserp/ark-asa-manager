@@ -27,6 +27,7 @@ class GameServerProfileRequest extends FormRequest
             'admin_password' => ['nullable', 'string', 'max:255'],
             'server_password' => ['nullable', 'string', 'max:255'],
             'max_players' => ['required', 'integer', 'min:1', 'max:500'],
+            'battleye_enabled' => ['sometimes', 'boolean'],
             'extra_args' => ['nullable', 'array'],
         ];
     }

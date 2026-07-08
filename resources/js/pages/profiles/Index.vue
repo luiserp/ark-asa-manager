@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Table,
     TableBody,
@@ -72,12 +72,14 @@ const props = defineProps<{
     servers: GameServer[];
 }>();
 
+const activeProfileId = computed(() => props.profiles.find(p => p.is_active)?.id ?? '');
+
 const replicateDialogOpen = ref(false);
 const replicateProfile = ref<Profile | null>(null);
 const targetServerId = ref('');
 
-function toggleActive(profile: Profile) {
-    router.patch(GameServerProfileController.toggleActive.url({ profile: profile.id }), {}, {
+function setActive(profileId: string) {
+    router.patch(GameServerProfileController.toggleActive.url({ profile: profileId }), {}, {
         preserveScroll: true,
     });
 }
@@ -124,7 +126,7 @@ function confirmReplicate() {
             </Button>
         </div>
 
-        <div v-else class="rounded-xl border">
+        <RadioGroup :model-value="activeProfileId" @update:model-value="setActive($event as string)" class="rounded-xl border">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -145,10 +147,7 @@ function confirmReplicate() {
                         <TableCell>{{ profile.session_name }}</TableCell>
                         <TableCell>{{ profile.max_players }}</TableCell>
                         <TableCell>
-                            <Switch
-                                :model-value="profile.is_active"
-                                @update:model-value="toggleActive(profile)"
-                            />
+                            <RadioGroupItem :value="profile.id" />
                         </TableCell>
                         <TableCell class="text-right">
                             <div class="flex items-center justify-end gap-2">
@@ -187,7 +186,7 @@ function confirmReplicate() {
                     </TableRow>
                 </TableBody>
             </Table>
-        </div>
+        </RadioGroup>
     </div>
 
     <Dialog v-model:open="replicateDialogOpen">

@@ -2,9 +2,8 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -34,12 +33,12 @@ class ServerStatusUpdated implements ShouldBroadcastNow
     }
 
     /**
-     * @return array<int, Channel>
+     * @return array<int, PresenceChannel>
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel("server.{$this->serverId}"),
+            new PresenceChannel("server.{$this->serverId}"),
         ];
     }
 }

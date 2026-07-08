@@ -57,7 +57,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#86efac\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" \"php artisan reverb:start\" --names='server,queue,vite,reverb'"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#86efac,#f9a8d4\" \"php artisan serve\" \"php artisan app:ark-asa-manager\" \"npm run dev\" \"php artisan reverb:start\" \"php artisan queue:listen --tries=1 --timeout=0\" --names='server,manager,vite,reverb,queue'"
         ],
         "lint": [
             "pint --parallel"

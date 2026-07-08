@@ -46,9 +46,11 @@ class SshService
 
     public function connect(): static
     {
-        if ($this->connection) {
+        if ($this->connection && $this->connection->isConnected()) {
             return $this;
         }
+
+        $this->connection = null;
 
         if (! file_exists($this->keyPath)) {
             throw new RuntimeException("SSH private key not found at: {$this->keyPath}");
