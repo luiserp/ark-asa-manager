@@ -121,6 +121,7 @@ class ArkServerService
 
     /**
      * Stop the ARK server gracefully (SIGTERM), then force-kill if still running.
+     * Also cleans up orphaned Wine/Xvfb processes from the process tree.
      */
     public function stop(): array
     {
@@ -128,6 +129,8 @@ class ArkServerService
             "PID=$(pgrep -f '[A]rkAscendedServer.exe')",
             'if [ -n "$PID" ]; then kill $PID && sleep 5; fi',
             "if pgrep -f '[A]rkAscendedServer.exe' > /dev/null; then pkill -9 -f '[A]rkAscendedServer.exe'; echo 'force-killed'; else echo 'stopped'; fi",
+            "pkill -f 'wineserver' 2>/dev/null; pkill -f 'winedevice' 2>/dev/null; pkill -f 'Xvfb' 2>/dev/null; pkill -f 'xvfb-run' 2>/dev/null",
+            "echo 'cleanup done'",
         ]);
 
         return $this->ssh->execute($command);
@@ -253,23 +256,31 @@ class ArkServerService
 
     /**
      * Get system-level metrics (CPU, memory, connected players).
+     * Uses cgroup stats when running in a container, falls back to free -m.
      *
      * @return array{cpu: float|null, memory_used: int|null, memory_total: int|null, players: int|null}
      */
     public function systemMetrics(): array
     {
-        $command = "grep 'cpu ' /proc/stat | awk '{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {printf \"%.1f\", usage}'; echo; free -m | awk '/Mem:/ {print \$3, \$2}'; ss -u -a 2>/dev/null | grep -c ':7777' || echo 0";
+        $command = "grep 'cpu ' /proc/stat | awk '{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {printf \"%.1f\", usage}'; echo; cat /sys/fs/cgroup/memory.current 2>/dev/null || cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || echo 0; cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || echo 0; ss -u -a 2>/dev/null | grep -c ':7777' || echo 0";
 
         $result = $this->ssh->execute($command);
         $lines = explode("\n", trim($result['stdout']));
 
         $cpu = isset($lines[0]) && is_numeric($lines[0]) ? (float) $lines[0] : null;
 
-        $memParts = isset($lines[1]) ? explode(' ', trim($lines[1])) : [];
-        $memoryUsed = isset($memParts[0]) && is_numeric($memParts[0]) ? (int) $memParts[0] : null;
-        $memoryTotal = isset($memParts[1]) && is_numeric($memParts[1]) ? (int) $memParts[1] : null;
+        $usedBytes = isset($lines[1]) && is_numeric($lines[1]) ? (int) $lines[1] : null;
+        $maxBytes = isset($lines[2]) && is_numeric($lines[2]) ? (int) $lines[2] : null;
 
-        $players = isset($lines[2]) ? max(0, (int) $lines[2] - 1) : null;
+        $memoryUsed = $usedBytes !== null ? (int) ($usedBytes / 1048576) : null;
+
+        if ($maxBytes !== null && $maxBytes > 0 && $maxBytes < 9000000000000000000) {
+            $memoryTotal = (int) ($maxBytes / 1048576);
+        } else {
+            $memoryTotal = $this->getTotalMemoryFallback();
+        }
+
+        $players = isset($lines[3]) ? max(0, (int) $lines[3] - 1) : null;
 
         return [
             'cpu' => $cpu,
@@ -277,6 +288,14 @@ class ArkServerService
             'memory_total' => $memoryTotal,
             'players' => $players,
         ];
+    }
+
+    private function getTotalMemoryFallback(): ?int
+    {
+        $result = $this->ssh->execute("awk '/MemTotal/{print \$2}' /proc/meminfo");
+        $kb = trim($result['stdout']);
+
+        return is_numeric($kb) ? (int) ((int) $kb / 1024) : null;
     }
 
     /**

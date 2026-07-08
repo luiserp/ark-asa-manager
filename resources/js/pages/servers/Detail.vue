@@ -262,8 +262,8 @@ onUnmounted(() => {
                 <CardContent>
                     <div class="text-xl font-bold">
                         <template v-if="status.memoryUsed != null && status.memoryTotal != null">
-                            {{ (status.memoryUsed / 1024).toFixed(1) }}
-                            <span class="text-sm font-normal text-muted-foreground">/ {{ (status.memoryTotal / 1024).toFixed(0) }} GB</span>
+                            {{ status.memoryUsed.toLocaleString('de-DE') }}
+                            <span class="text-sm font-normal text-muted-foreground">/ {{ status.memoryTotal.toLocaleString('de-DE') }} MB</span>
                         </template>
                         <template v-else>—</template>
                     </div>

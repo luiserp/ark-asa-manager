@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { BookOpen, ChevronsUpDown, FileCode, FolderGit2, FolderOpen, Info, LayoutGrid, Layers, Server } from '@lucide/vue';
+import { Activity, BookOpen, ChevronsUpDown, FileCode, FolderGit2, FolderOpen, Info, LayoutGrid, Layers, Server } from '@lucide/vue';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
 import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
+import ServerProcessController from '@/actions/App/Http/Controllers/ServerProcessController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -79,6 +80,11 @@ const serverNavItems = computed<NavItem[]>(() => {
             title: 'Files',
             href: ServerFilesController.index.url({ server: activeServer.value.id }),
             icon: FolderOpen,
+        },
+        {
+            title: 'Processes',
+            href: ServerProcessController.index.url({ server: activeServer.value.id }),
+            icon: Activity,
         },
         {
             title: 'Profiles',
