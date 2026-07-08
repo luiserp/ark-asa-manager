@@ -1,0 +1,133 @@
+name: ark-asa-manager
+
+services:
+  app:
+    build: &app-build
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        WWWGROUP: '${WWWGROUP:-1000}'
+    container_name: ark-asa-app
+    restart: unless-stopped
+    command: php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000 --watch
+    ports:
+      - '${APP_PORT:-8000}:8000'
+    environment:
+      CHOKIDAR_USEPOLLING: 'true'
+    volumes: &app-volumes
+      - .:/var/www/html
+      - app-vendor:/var/www/html/vendor
+      - app-node-modules:/var/www/html/node_modules
+      - app-storage:/var/www/html/storage
+    networks:
+      - ark-network
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  reverb:
+    build: *app-build
+    container_name: ark-asa-reverb
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - '${REVERB_SERVER_PORT:-8080}:8080'
+    volumes: *app-volumes
+    networks:
+      - ark-network
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  queue:
+    build: *app-build
+    container_name: ark-asa-queue
+    restart: unless-stopped
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    volumes: *app-volumes
+    networks:
+      - ark-network
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  scheduler:
+    build: *app-build
+    container_name: ark-asa-scheduler
+    restart: unless-stopped
+    command: php artisan schedule:work
+    volumes: *app-volumes
+    networks:
+      - ark-network
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ark-manager:
+    build: *app-build
+    container_name: ark-asa-manager
+    restart: unless-stopped
+    command: php artisan app:ark-asa-manager
+    volumes: *app-volumes
+    networks:
+      - ark-network
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  pgsql:
+    image: postgres:18
+    container_name: ark-asa-pgsql
+    restart: unless-stopped
+    ports:
+      - '${DB_FORWARD_PORT:-5432}:5432'
+    environment:
+      POSTGRES_DB: '${DB_DATABASE:-ark_asa}'
+      POSTGRES_USER: '${DB_USERNAME:-ark}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+    volumes:
+      - pgsql-data:/var/lib/postgresql
+    networks:
+      - ark-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ark} -d ${DB_DATABASE:-ark_asa}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ark-asa-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_FORWARD_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - ark-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  app-vendor:
+  app-node-modules:
+  app-storage:
+  pgsql-data:
+  redis-data:
+
+networks:
+  ark-network:
+    driver: bridge

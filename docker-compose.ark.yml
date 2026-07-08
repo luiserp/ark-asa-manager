@@ -1,0 +1,29 @@
+name: ark-asa-server
+
+services:
+  ark-server:
+    build:
+      context: .
+      dockerfile: docker/ark-server/Dockerfile
+    container_name: ark-sa-server
+    restart: unless-stopped
+    ports:
+      - '${GAME_PORT:-7777}:7777/udp'
+      - '${GAME_PORT_2:-7778}:7778/udp'
+      - '${QUERY_PORT:-27015}:27015/udp'
+      - '${RCON_PORT:-27020}:27020/tcp'
+      - '${ARK_SERVER_SSH_PORT:-2222}:22/tcp'
+    environment:
+      TZ: '${TZ:-America/New_York}'
+    volumes:
+      - ark-server-data:/ark-server
+      - ./ssh:/shared-ssh:ro
+    networks:
+      - ark-network
+
+volumes:
+  ark-server-data:
+
+networks:
+  ark-network:
+    driver: bridge
