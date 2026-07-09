@@ -15,15 +15,33 @@ defineProps<Props>();
 <template>
     <svg
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 40 42"
+        viewBox="0 0 40 40"
         :class="className"
         v-bind="$attrs"
     >
+        <!-- Shield outline -->
         <path
             fill="currentColor"
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M17.2 5.633 8.6.855 0 5.633v26.51l16.2 9 16.2-9v-8.442l7.6-4.223V9.856l-8.6-4.777-8.6 4.777V18.3l-5.6 3.111V5.633ZM38 18.301l-5.6 3.11v-6.157l5.6-3.11V18.3Zm-1.06-7.856-5.54 3.078-5.54-3.079 5.54-3.078 5.54 3.079ZM24.8 18.3v-6.157l5.6 3.111v6.158L24.8 18.3Zm-1 1.732 5.54 3.078-13.14 7.302-5.54-3.078 13.14-7.3v-.002Zm-16.2 7.89 7.6 4.222V38.3L2 30.966V7.92l5.6 3.111v16.892ZM8.6 9.3 3.06 6.222 8.6 3.143l5.54 3.08L8.6 9.3Zm21.8 15.51-13.2 7.334V38.3l13.2-7.334v-6.156ZM9.6 11.034l5.6-3.11v14.6l-5.6 3.11v-14.6Z"
+            d="M20 2 4 9v12c0 9.33 6.83 18.06 16 20 9.17-1.94 16-10.67 16-20V9L20 2Z"
+            opacity="0.15"
         />
+        <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+            d="M20 3 5 9.5v11.5c0 8.73 6.4 16.9 15 18.75 8.6-1.85 15-10.02 15-18.75V9.5L20 3Z"
+        />
+        <!-- Mountain / server peak -->
+        <path
+            fill="currentColor"
+            stroke="currentColor"
+            stroke-width="0.5"
+            stroke-linejoin="round"
+            d="M20 10l-9 16h6l3-5.5 3 5.5h6L20 10Z"
+        />
+        <!-- Signal lines (server status) -->
+        <line x1="17" y1="30" x2="23" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <line x1="15" y1="33" x2="25" y2="33" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>
 </template>

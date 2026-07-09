@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/table';
 import {
     AlertDialog,
-    AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -159,7 +158,7 @@ function providerLabel(key: string): string {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction @click="performDelete">Delete</AlertDialogAction>
+                <Button variant="destructive" @click="performDelete">Delete</Button>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
