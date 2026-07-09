@@ -9,6 +9,7 @@ use App\Http\Controllers\ProfileModsController;
 use App\Http\Controllers\ServerDetailController;
 use App\Http\Controllers\ServerFilesController;
 use App\Http\Controllers\ServerProcessController;
+use App\Http\Controllers\ServerRconController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -28,19 +29,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('servers/{server}/replicate', [GameServerController::class, 'replicate'])->name('servers.replicate');
     Route::resource('servers', GameServerController::class)->except(['show']);
 
+    Route::get('servers/active/detail', [ServerDetailController::class, 'active'])->name('servers.active-detail');
     Route::get('servers/{server}/detail', [ServerDetailController::class, 'index'])->name('servers.detail');
     Route::post('servers/{server}/install', [ServerDetailController::class, 'install'])->name('servers.install');
     Route::post('servers/{server}/start', [ServerDetailController::class, 'start'])->name('servers.start');
     Route::post('servers/{server}/stop', [ServerDetailController::class, 'stop'])->name('servers.stop');
     Route::post('servers/{server}/leave', [ServerDetailController::class, 'leave'])->name('servers.leave');
 
+    Route::get('servers/active/files', [ServerFilesController::class, 'active'])->name('servers.active-files');
     Route::get('servers/{server}/files', [ServerFilesController::class, 'index'])->name('servers.files');
     Route::get('servers/{server}/files/read', [ServerFilesController::class, 'read'])->name('servers.files.read');
     Route::post('servers/{server}/files/write', [ServerFilesController::class, 'write'])->name('servers.files.write');
     Route::get('servers/{server}/files/download', [ServerFilesController::class, 'download'])->name('servers.files.download');
 
+    Route::get('servers/active/processes', [ServerProcessController::class, 'active'])->name('servers.active-processes');
     Route::get('servers/{server}/processes', [ServerProcessController::class, 'index'])->name('servers.processes');
     Route::delete('servers/{server}/processes', [ServerProcessController::class, 'kill'])->name('servers.processes.kill');
+
+    Route::get('servers/active/rcon', [ServerRconController::class, 'active'])->name('servers.active-rcon');
+    Route::get('servers/{server}/rcon', [ServerRconController::class, 'index'])->name('servers.rcon');
+    Route::post('servers/{server}/rcon', [ServerRconController::class, 'execute'])->name('servers.rcon.execute');
 
     Route::resource('integrations', IntegrationController::class)->except(['show']);
 
@@ -48,12 +56,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('profiles/{profile}/toggle-active', [GameServerProfileController::class, 'toggleActive'])->name('profiles.toggle-active');
     Route::post('profiles/{profile}/replicate', [GameServerProfileController::class, 'replicate'])->name('profiles.replicate');
 
+    Route::get('profiles/active/config', [ProfileConfigController::class, 'active'])->name('profiles.active-config');
     Route::get('profiles/{profile}/config', [ProfileConfigController::class, 'index'])->name('profiles.config');
     Route::get('profiles/{profile}/config/pull', [ProfileConfigController::class, 'pull'])->name('profiles.config.pull');
     Route::post('profiles/{profile}/config/push', [ProfileConfigController::class, 'push'])->name('profiles.config.push');
     Route::post('profiles/{profile}/config/apply', [ProfileConfigController::class, 'apply'])->name('profiles.config.apply');
     Route::post('profiles/{profile}/config/import', [ProfileConfigController::class, 'importFromServer'])->name('profiles.config.import');
 
+    Route::get('profiles/active/mods', [ProfileModsController::class, 'active'])->name('profiles.active-mods');
     Route::get('profiles/{profile}/mods', [ProfileModsController::class, 'index'])->name('profiles.mods');
     Route::post('profiles/{profile}/mods', [ProfileModsController::class, 'store'])->name('profiles.mods.store');
     Route::get('profiles/{profile}/mods/search', [ProfileModsController::class, 'search'])->name('profiles.mods.search');

@@ -190,3 +190,5 @@ Other containers wait for setup to complete, then start their command. Dependenc
 
 `docker compose exec app rm -rf /var/www/html/storage/.setup-lock /var/www/html/storage/.setup-ready`
 `php artisan wayfinder:generate --with-form --no-interaction`
+
+`docker compose -f docker-compose.ark.yml -p ark-asa-server-2 --env-file .env.ark2 up --build -d`

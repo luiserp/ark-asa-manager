@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GameServer;
 use App\Models\GameServerProfile;
 use App\Services\Ark\ArkServerService;
 use App\Services\SshService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +33,24 @@ class ProfileConfigController extends Controller
 
     public function index(GameServerProfile $profile): Response
     {
+        return Inertia::render('profiles/Config', [
+            'profile' => $profile->only('id', 'name'),
+            'server' => $profile->gameServer->only('id', 'name'),
+            'files' => self::ALLOWED_FILES,
+        ]);
+    }
+
+    public function active(): Response|RedirectResponse
+    {
+        $server = GameServer::active()->first();
+        $profile = $server
+            ? GameServerProfile::where('game_server_id', $server->id)->active()->first()
+            : null;
+
+        if (! $profile) {
+            return to_route('profiles.index');
+        }
+
         return Inertia::render('profiles/Config', [
             'profile' => $profile->only('id', 'name'),
             'server' => $profile->gameServer->only('id', 'name'),

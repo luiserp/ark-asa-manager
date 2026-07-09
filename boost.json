@@ -10,10 +10,12 @@
     "skills": [
         "fortify-development",
         "laravel-best-practices",
+        "configuring-horizon",
         "octane-development",
         "wayfinder-development",
         "pest-testing",
         "inertia-vue-development",
+        "echo-development",
         "tailwindcss-development"
     ]
 }

@@ -72,17 +72,26 @@ class SshService
     /**
      * Execute a command and return the full output.
      *
+     * @param  int|null  $timeout  Override the default execution timeout (in seconds).
      * @return array{stdout: string, stderr: string, exit_code: int}
      */
-    public function execute(string $command): array
+    public function execute(string $command, ?int $timeout = null): array
     {
         $this->connect();
+
+        if ($timeout !== null) {
+            $this->connection->setTimeout($timeout);
+        }
 
         $this->connection->enableQuietMode();
 
         $stdout = $this->connection->exec($command);
         $stderr = $this->connection->getStdError();
         $exitCode = $this->connection->getExitStatus();
+
+        if ($timeout !== null) {
+            $this->connection->setTimeout(10);
+        }
 
         return [
             'stdout' => trim($stdout),

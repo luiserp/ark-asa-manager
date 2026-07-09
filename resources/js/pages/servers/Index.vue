@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import echo from '@/echo';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
+import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
+import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
+import ServerProcessController from '@/actions/App/Http/Controllers/ServerProcessController';
 import Heading from '@/components/Heading.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -25,7 +30,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { index, create } from '@/routes/servers';
-import { Plus, Pencil, Trash2, Copy } from '@lucide/vue';
+import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -47,11 +52,47 @@ interface GameServer {
     is_active: boolean;
 }
 
+interface ServerStatus {
+    installed: boolean;
+    running: boolean;
+    error?: string | null;
+    players?: number | null;
+    maxPlayers?: number | null;
+}
+
 const props = defineProps<{
     servers: GameServer[];
 }>();
 
 const activeServerId = computed(() => props.servers.find(s => s.is_active)?.id ?? '');
+const statuses = reactive<Record<string, ServerStatus>>({});
+
+let csrfToken = '';
+
+function notifyLeave(serverId: string) {
+    fetch(ServerDetailController.leave.url({ server: serverId }), {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken },
+    });
+}
+
+onMounted(() => {
+    csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
+    for (const server of props.servers) {
+        echo.join(`server.${server.id}`)
+            .listen('.ServerStatusUpdated', (e: ServerStatus) => {
+                statuses[server.id] = e;
+            });
+    }
+});
+
+onUnmounted(() => {
+    for (const server of props.servers) {
+        notifyLeave(server.id);
+        echo.leave(`server.${server.id}`);
+    }
+});
 
 function setActive(serverId: string) {
     router.patch(GameServerController.toggleActive.url({ server: serverId }), {}, {
@@ -95,6 +136,7 @@ function replicateServer(server: GameServer) {
                     <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Host</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Active</TableHead>
                         <TableHead class="text-right">Actions</TableHead>
                     </TableRow>
@@ -102,14 +144,43 @@ function replicateServer(server: GameServer) {
                 <TableBody>
                     <TableRow v-for="server in servers" :key="server.id">
                         <TableCell class="font-medium">
-                            {{ server.name }}
+                            <Link :href="ServerDetailController.index.url({ server: server.id })" class="hover:underline">
+                                {{ server.name }}
+                            </Link>
                         </TableCell>
                         <TableCell>{{ server.host }}:{{ server.port }}</TableCell>
+                        <TableCell>
+                            <Loader2 v-if="!statuses[server.id]" class="h-4 w-4 animate-spin text-muted-foreground" />
+                            <Badge v-else-if="statuses[server.id]?.error" variant="destructive">Unreachable</Badge>
+                            <Badge v-else-if="statuses[server.id]?.running" variant="default" class="bg-green-600">
+                                Running
+                                <template v-if="statuses[server.id]?.players != null">
+                                    · {{ statuses[server.id].players }}<span v-if="statuses[server.id]?.maxPlayers">/{{ statuses[server.id].maxPlayers }}</span>
+                                </template>
+                            </Badge>
+                            <Badge v-else-if="statuses[server.id]?.installed" variant="secondary">Stopped</Badge>
+                            <Badge v-else variant="outline">Not Installed</Badge>
+                        </TableCell>
                         <TableCell>
                             <RadioGroupItem :value="server.id" />
                         </TableCell>
                         <TableCell class="text-right">
                             <div class="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" as-child title="Details">
+                                    <Link :href="ServerDetailController.index.url({ server: server.id })">
+                                        <Info class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" as-child title="Files">
+                                    <Link :href="ServerFilesController.index.url({ server: server.id })">
+                                        <FolderOpen class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" as-child title="Processes">
+                                    <Link :href="ServerProcessController.index.url({ server: server.id })">
+                                        <Activity class="h-4 w-4" />
+                                    </Link>
+                                </Button>
                                 <Button variant="ghost" size="icon" @click="replicateServer(server)" title="Replicate">
                                     <Copy class="h-4 w-4" />
                                 </Button>

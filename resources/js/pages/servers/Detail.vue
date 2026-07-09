@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import echo from '@/echo';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
 import Heading from '@/components/Heading.vue';
@@ -153,17 +153,37 @@ function scrollToBottom() {
     });
 }
 
-function notifyLeave() {
-    const url = ServerDetailController.leave.url({ server: props.server.id });
+let currentChannelId: string | null = null;
+
+function notifyLeave(serverId?: string) {
+    const id = serverId ?? currentChannelId ?? props.server.id;
+    const url = ServerDetailController.leave.url({ server: id });
     const data = new FormData();
     data.append('_token', csrfToken);
     navigator.sendBeacon(url, data);
 }
 
-onMounted(() => {
-    csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+function leaveChannel() {
+    if (!currentChannelId) return;
+    stopUptimeTicker();
+    notifyLeave(currentChannelId);
+    echo.leave(`server.${currentChannelId}`);
+    currentChannelId = null;
+}
 
-    echo.join(`server.${props.server.id}`)
+function joinChannel(serverId: string) {
+    leaveChannel();
+    currentChannelId = serverId;
+
+    status.value = { installed: false, running: false, pid: null, uptime: null };
+    taskOutput.value = [];
+    serverLogs.value = '';
+    consoleLogs.value = '';
+    activeTask.value = null;
+    loadingStatus.value = true;
+    uptimeSeconds.value = 0;
+
+    echo.join(`server.${serverId}`)
         .here((users: PresenceUser[]) => {
             viewers.value = users;
         })
@@ -200,19 +220,28 @@ onMounted(() => {
             activeTask.value = null;
             scrollToBottom();
         });
+}
 
-    window.addEventListener('beforeunload', notifyLeave);
+watch(() => props.server.id, (newId, oldId) => {
+    if (newId !== oldId) {
+        joinChannel(newId);
+    }
+});
+
+onMounted(() => {
+    csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    joinChannel(props.server.id);
+    window.addEventListener('beforeunload', () => notifyLeave());
 });
 
 onUnmounted(() => {
-    stopUptimeTicker();
-    window.removeEventListener('beforeunload', notifyLeave);
-    notifyLeave();
-    echo.leave(`server.${props.server.id}`);
+    window.removeEventListener('beforeunload', () => notifyLeave());
+    leaveChannel();
 });
 </script>
 
 <template>
+
     <Head :title="`${server.name} - Details`" />
 
     <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden p-4">
@@ -263,7 +292,8 @@ onUnmounted(() => {
                     <div class="text-xl font-bold">
                         <template v-if="status.memoryUsed != null && status.memoryTotal != null">
                             {{ status.memoryUsed.toLocaleString('de-DE') }}
-                            <span class="text-sm font-normal text-muted-foreground">/ {{ status.memoryTotal.toLocaleString('de-DE') }} MB</span>
+                            <span class="text-sm font-normal text-muted-foreground">/ {{
+                                status.memoryTotal.toLocaleString('de-DE') }} MB</span>
                         </template>
                         <template v-else>—</template>
                     </div>
@@ -291,7 +321,8 @@ onUnmounted(() => {
                     <div class="text-xl font-bold">
                         <template v-if="status.players != null">
                             {{ status.players }}
-                            <span v-if="status.maxPlayers" class="text-sm font-normal text-muted-foreground">/ {{ status.maxPlayers }}</span>
+                            <span v-if="status.maxPlayers" class="text-sm font-normal text-muted-foreground">/ {{
+                                status.maxPlayers }}</span>
                         </template>
                         <template v-else>—</template>
                     </div>
@@ -314,20 +345,13 @@ onUnmounted(() => {
         <!-- Action Groups -->
         <div class="flex shrink-0 flex-wrap items-center gap-2">
             <div class="flex items-center gap-2">
-                <Button
-                    :disabled="!!activeTask || !status.installed || status.running"
-                    @click="dispatchTask('start')"
-                >
+                <Button :disabled="!!activeTask || !status.installed || status.running" @click="dispatchTask('start')">
                     <Loader2 v-if="activeTask === 'start'" class="mr-2 h-4 w-4 animate-spin" />
                     <Play v-else class="mr-2 h-4 w-4" />
                     Start
                 </Button>
 
-                <Button
-                    variant="destructive"
-                    :disabled="!!activeTask || !status.running"
-                    @click="dispatchTask('stop')"
-                >
+                <Button variant="destructive" :disabled="!!activeTask || !status.running" @click="dispatchTask('stop')">
                     <Loader2 v-if="activeTask === 'stop'" class="mr-2 h-4 w-4 animate-spin" />
                     <Square v-else class="mr-2 h-4 w-4" />
                     Stop
@@ -337,11 +361,7 @@ onUnmounted(() => {
             <Separator orientation="vertical" class="mx-1 h-8" />
 
             <div class="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    :disabled="!!activeTask"
-                    @click="dispatchTask('install')"
-                >
+                <Button variant="outline" :disabled="!!activeTask" @click="dispatchTask('install')">
                     <Loader2 v-if="activeTask === 'install'" class="mr-2 h-4 w-4 animate-spin" />
                     <Download v-else class="mr-2 h-4 w-4" />
                     {{ status.installed ? 'Update' : 'Install' }}
@@ -368,28 +388,18 @@ onUnmounted(() => {
                 </TabsList>
 
                 <div class="flex items-center gap-2">
-                    <Button
-                        v-if="taskOutput.length > 0 && !activeTask"
-                        variant="ghost"
-                        size="sm"
-                        @click="taskOutput = []"
-                    >
+                    <Button v-if="taskOutput.length > 0 && !activeTask" variant="ghost" size="sm"
+                        @click="taskOutput = []">
                         Clear
                     </Button>
                 </div>
             </div>
 
             <TabsContent value="output" class="mt-2 min-h-0 flex-1">
-                <div
-                    ref="liveOutputContainer"
-                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-green-400"
-                >
+                <div ref="liveOutputContainer"
+                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-green-400">
                     <div v-if="taskOutput.length > 0">
-                        <div
-                            v-for="(line, i) in taskOutput"
-                            :key="i"
-                            class="whitespace-pre-wrap"
-                        >{{ line }}</div>
+                        <div v-for="(line, i) in taskOutput" :key="i" class="whitespace-pre-wrap">{{ line }}</div>
                     </div>
                     <p v-else class="text-gray-500">Waiting for task output...</p>
                 </div>
@@ -397,8 +407,7 @@ onUnmounted(() => {
 
             <TabsContent value="logs" class="mt-2 min-h-0 flex-1">
                 <div
-                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-green-400"
-                >
+                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-green-400">
                     <pre v-if="serverLogs" class="whitespace-pre-wrap">{{ serverLogs }}</pre>
                     <p v-else class="text-gray-500">Waiting for engine logs...</p>
                 </div>
@@ -406,8 +415,7 @@ onUnmounted(() => {
 
             <TabsContent value="console" class="mt-2 min-h-0 flex-1">
                 <div
-                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-amber-400"
-                >
+                    class="terminal-scroll h-full overflow-auto rounded-md border bg-black p-4 font-mono text-xs text-amber-400">
                     <pre v-if="consoleLogs" class="whitespace-pre-wrap">{{ consoleLogs }}</pre>
                     <p v-else class="text-gray-500">Waiting for console output...</p>
                 </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\GameServer;
 use App\Services\SshService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,22 +13,41 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ServerFilesController extends Controller
 {
+    public function active(Request $request): Response|RedirectResponse
+    {
+        $server = GameServer::active()->first();
+
+        if (! $server) {
+            return to_route('servers.index');
+        }
+
+        return $this->index($request, $server);
+    }
+
     public function index(Request $request, GameServer $server): Response
     {
         $path = $request->query('path', $server->server_dir);
         $path = $this->resolvePath($path, $server->server_dir);
 
-        $ssh = SshService::forServer($server)->connect();
-        $result = $ssh->execute("ls -la --group-directories-first {$path} 2>&1");
+        $entries = [];
+        $error = null;
 
-        $entries = $this->parseLsOutput($result['stdout'] ?? '', $path);
+        try {
+            $ssh = SshService::forServer($server)->connect();
+            $result = $ssh->execute("ls -la --group-directories-first {$path} 2>&1");
+
+            $entries = $this->parseLsOutput($result['stdout'] ?? '', $path);
+            $error = $result['exit_code'] !== 0 ? ($result['stderr'] ?: $result['stdout']) : null;
+        } catch (\Throwable) {
+            $error = 'Unable to connect to the server. Make sure the server container is running.';
+        }
 
         return Inertia::render('servers/Files', [
             'server' => $server,
             'currentPath' => $path,
             'basePath' => $server->server_dir,
             'entries' => $entries,
-            'error' => $result['exit_code'] !== 0 ? ($result['stderr'] ?: $result['stdout']) : null,
+            'error' => $error,
         ]);
     }
 
@@ -79,7 +99,11 @@ class ServerFilesController extends Controller
         $path = $request->query('path', '');
         $path = $this->resolvePath($path, $server->server_dir);
 
-        $ssh = SshService::forServer($server)->connect();
+        try {
+            $ssh = SshService::forServer($server)->connect();
+        } catch (\Throwable) {
+            abort(503, 'Unable to connect to the server. Make sure the server container is running.');
+        }
 
         $check = $ssh->execute("test -f {$path} && echo 'ok'");
         if (trim($check['stdout'] ?? '') !== 'ok') {

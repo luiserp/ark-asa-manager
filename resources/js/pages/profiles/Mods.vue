@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import ProfileModsController from '@/actions/App/Http/Controllers/ProfileModsController';
 import Heading from '@/components/Heading.vue';
@@ -422,6 +422,15 @@ async function saveMods() {
         confirmSave.value = false;
     }
 }
+
+watch(() => props.profile.id, () => {
+    mods.value = JSON.parse(JSON.stringify(props.mods)).map((m: any) => ({
+        ...m,
+        is_enabled: m.is_enabled ?? true,
+    }));
+    dirty.value = false;
+    fetchModDetails();
+});
 
 onMounted(() => {
     fetchModDetails();

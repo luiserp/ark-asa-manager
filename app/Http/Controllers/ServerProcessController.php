@@ -6,44 +6,68 @@ use App\Models\GameServer;
 use App\Services\Ark\ArkServerService;
 use App\Services\SshService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ServerProcessController extends Controller
 {
+    public function active(): Response|RedirectResponse
+    {
+        $server = GameServer::active()->first();
+
+        if (! $server) {
+            return to_route('servers.index');
+        }
+
+        return $this->index($server);
+    }
+
     public function index(GameServer $server): Response
     {
-        $ssh = SshService::forServer($server)->connect();
+        $processes = [];
+        $stats = ['cpu' => null, 'memory' => null, 'disk' => null];
+        $error = null;
 
-        $command = 'ps axo pid,user,%cpu,%mem,rss,stat,start_time,time,args --sort=-%mem 2>&1';
-        $result = $ssh->execute($command);
+        try {
+            $ssh = SshService::forServer($server)->connect();
 
-        $processes = $this->parsePsOutput($result['stdout'] ?? '');
+            $command = 'ps axo pid,user,%cpu,%mem,rss,stat,start_time,time,args --sort=-%mem 2>&1';
+            $result = $ssh->execute($command);
 
-        $service = new ArkServerService(
-            ssh: $ssh,
-            serverDir: $server->server_dir,
-            backupsDir: $server->backups_dir,
-            logsDir: $server->logs_dir,
-            binaryPath: $server->binary_path,
-            protonPath: $server->proton_path,
-            steamAppId: $server->steam_app_id,
-        );
-        $metrics = $service->systemMetrics();
-        $disk = $service->diskUsage();
+            $processes = $this->parsePsOutput($result['stdout'] ?? '');
 
-        return Inertia::render('servers/Processes', [
-            'server' => $server,
-            'processes' => $processes,
-            'stats' => [
+            $service = new ArkServerService(
+                ssh: $ssh,
+                serverDir: $server->server_dir,
+                backupsDir: $server->backups_dir,
+                logsDir: $server->logs_dir,
+                binaryPath: $server->binary_path,
+                protonPath: $server->proton_path,
+                steamAppId: $server->steam_app_id,
+            );
+            $metrics = $service->systemMetrics();
+            $disk = $service->diskUsage();
+
+            $stats = [
                 'cpu' => $metrics['cpu'] !== null ? $metrics['cpu'].'%' : null,
                 'memory' => $metrics['memory_used'] !== null
                     ? number_format($metrics['memory_used'], 0, ',', '.').' / '.number_format($metrics['memory_total'] ?? 0, 0, ',', '.').' MB'
                     : null,
                 'disk' => $disk['server'],
-            ],
-            'error' => $result['exit_code'] !== 0 ? ($result['stderr'] ?: $result['stdout']) : null,
+            ];
+
+            $error = $result['exit_code'] !== 0 ? ($result['stderr'] ?: $result['stdout']) : null;
+        } catch (\Throwable) {
+            $error = 'Unable to connect to the server. Make sure the server container is running.';
+        }
+
+        return Inertia::render('servers/Processes', [
+            'server' => $server,
+            'processes' => $processes,
+            'stats' => $stats,
+            'error' => $error,
         ]);
     }
 
@@ -57,7 +81,14 @@ class ServerProcessController extends Controller
         $pid = (int) $data['pid'];
         $signal = $data['signal'] ?? 'TERM';
 
-        $ssh = SshService::forServer($server)->connect();
+        try {
+            $ssh = SshService::forServer($server)->connect();
+        } catch (\Throwable) {
+            return response()->json([
+                'error' => 'Unable to connect to the server. Make sure the server container is running.',
+            ], 503);
+        }
+
         $result = $ssh->execute("kill -{$signal} {$pid} 2>&1");
 
         if ($result['exit_code'] !== 0) {

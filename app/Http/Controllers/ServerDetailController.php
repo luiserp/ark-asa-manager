@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\GameServer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redis;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,6 +13,19 @@ class ServerDetailController extends Controller
 {
     public function index(GameServer $server): Response
     {
+        return Inertia::render('servers/Detail', [
+            'server' => $server,
+        ]);
+    }
+
+    public function active(): Response|RedirectResponse
+    {
+        $server = GameServer::active()->first();
+
+        if (! $server) {
+            return to_route('servers.index');
+        }
+
         return Inertia::render('servers/Detail', [
             'server' => $server,
         ]);

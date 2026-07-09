@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
+import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
+import ProfileModsController from '@/actions/App/Http/Controllers/ProfileModsController';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -42,7 +44,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { index, create } from '@/routes/profiles';
-import { Plus, Pencil, Trash2, Copy } from '@lucide/vue';
+import { Plus, Pencil, Trash2, Copy, FileCode, Blocks } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -140,7 +142,11 @@ function confirmReplicate() {
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="profile in profiles" :key="profile.id">
-                        <TableCell class="font-medium">{{ profile.name }}</TableCell>
+                        <TableCell class="font-medium">
+                            <Link :href="ProfileConfigController.index.url({ profile: profile.id })" class="hover:underline">
+                                {{ profile.name }}
+                            </Link>
+                        </TableCell>
                         <TableCell>
                             <Badge variant="secondary">{{ profile.map }}</Badge>
                         </TableCell>
@@ -151,6 +157,16 @@ function confirmReplicate() {
                         </TableCell>
                         <TableCell class="text-right">
                             <div class="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" as-child title="Config">
+                                    <Link :href="ProfileConfigController.index.url({ profile: profile.id })">
+                                        <FileCode class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" as-child title="Mods">
+                                    <Link :href="ProfileModsController.index.url({ profile: profile.id })">
+                                        <Blocks class="h-4 w-4" />
+                                    </Link>
+                                </Button>
                                 <Button variant="ghost" size="icon" title="Replicate" @click="openReplicateDialog(profile)">
                                     <Copy class="h-4 w-4" />
                                 </Button>

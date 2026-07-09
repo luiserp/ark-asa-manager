@@ -109,20 +109,25 @@ class ArkServerService
     {
         $urlArgs = $this->buildUrlArgs($map, $options);
         $flagsStr = $flags ? ' '.implode(' ', $flags) : '';
+        $winePrefix = dirname($this->serverDir).'/.wine';
 
-        $command = sprintf(
-            'mkdir -p %s && cd %s && nohup xvfb-run --auto-servernum %s %s/%s "%s"%s > %s/server_$(date +%%Y%%m%%d_%%H%%M%%S).log 2>&1 & echo $!',
-            $this->logsDir,
-            $this->serverDir,
-            $this->protonPath,
-            $this->serverDir,
-            $this->binaryPath,
-            $urlArgs,
-            $flagsStr,
-            $this->logsDir,
-        );
+        $command = implode(' && ', [
+            "export WINEPREFIX={$winePrefix}",
+            "mkdir -p {$this->logsDir} {$winePrefix}",
+            "test -f {$winePrefix}/system.reg || {$this->protonPath} wineboot --init 2>/dev/null",
+            "cd {$this->serverDir}",
+            sprintf(
+                'nohup xvfb-run --auto-servernum %s %s/%s "%s"%s > %s/server_$(date +%%Y%%m%%d_%%H%%M%%S).log 2>&1 & echo $!',
+                $this->protonPath,
+                $this->serverDir,
+                $this->binaryPath,
+                $urlArgs,
+                $flagsStr,
+                $this->logsDir,
+            ),
+        ]);
 
-        return $this->ssh->execute($command);
+        return $this->ssh->execute($command, timeout: 60);
     }
 
     /**
@@ -258,7 +263,7 @@ class ArkServerService
      */
     public function isInstalled(): bool
     {
-        $result = $this->ssh->execute("test -d {$this->serverDir}/ShooterGame && echo yes || echo no");
+        $result = $this->ssh->execute("test -f {$this->serverDir}/{$this->binaryPath} && echo yes || echo no");
 
         return str_contains($result['stdout'], 'yes');
     }

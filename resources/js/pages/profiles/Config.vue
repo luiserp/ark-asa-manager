@@ -174,6 +174,13 @@ watch(activeFile, () => {
     loadFromDb();
 });
 
+watch(() => props.profile.id, () => {
+    activeFile.value = props.files[0];
+    editorContent.value = '';
+    dirty.value = false;
+    loadFromDb();
+});
+
 onMounted(() => {
     loadFromDb();
 });

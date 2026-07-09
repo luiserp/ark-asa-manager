@@ -7,6 +7,9 @@ use App\Events\ServerLogsUpdated;
 use App\Events\ServerStatusUpdated;
 use App\Events\ServerTaskCompleted;
 use App\Events\ServerTaskOutput;
+use App\Jobs\InstallGameServer;
+use App\Jobs\StartGameServer;
+use App\Jobs\StopGameServer;
 use App\Models\GameServer;
 use App\Models\GameServerProfile;
 use App\Services\Ark\ArkServerService;
@@ -41,13 +44,19 @@ class ArkAsaManager extends Command
     /** @var array<string, bool> */
     private array $serverRunning = [];
 
+    /** @var array<string, \React\EventLoop\TimerInterface> */
+    private array $releaseTimers = [];
+
     private int $statusInterval;
+
+    private int $releaseCooldown;
 
     private int $inactivityTimeout;
 
     public function handle(): void
     {
         $this->statusInterval = (int) config('ark.manager.status_interval', 5);
+        $this->releaseCooldown = (int) config('ark.manager.release_cooldown', 5);
         $this->inactivityTimeout = (int) config('ark.manager.subscription_check_interval', 30) * 4;
 
         $this->info('ARK ASA Manager starting...');
@@ -117,9 +126,9 @@ class ArkAsaManager extends Command
         $this->lastActivityAt[$serverId] = microtime(true);
 
         match ($task) {
-            'install' => $this->runInstall($serverId),
-            'start' => $this->runStart($serverId, $data['profileId'] ?? null),
-            'stop' => $this->runStop($serverId),
+            'install' => InstallGameServer::dispatch($serverId),
+            'start' => StartGameServer::dispatch($serverId, $data['profileId'] ?? null),
+            'stop' => StopGameServer::dispatch($serverId),
             'logs' => $this->runLogs($serverId),
             default => $this->warn("[CMD] Unknown task: {$task}"),
         };
@@ -141,6 +150,8 @@ class ArkAsaManager extends Command
         $this->lastActivityAt[$serverId] = microtime(true);
 
         if ($action === 'join' && $userId) {
+            $this->cancelPendingRelease($serverId);
+
             $this->watchers[$serverId] ??= [];
             if (! in_array((int) $userId, $this->watchers[$serverId])) {
                 $this->watchers[$serverId][] = (int) $userId;
@@ -156,7 +167,7 @@ class ArkAsaManager extends Command
 
             if (empty($this->watchers[$serverId])) {
                 unset($this->watchers[$serverId]);
-                $this->releaseConnection($serverId);
+                $this->scheduleRelease($serverId);
             }
         }
     }
@@ -184,6 +195,7 @@ class ArkAsaManager extends Command
             if (($now - $lastActivity) > $this->inactivityTimeout) {
                 $this->info("[CLEANUP] Server {$serverId} inactive for >{$this->inactivityTimeout}s, releasing");
                 unset($this->watchers[$serverId]);
+                $this->cancelPendingRelease($serverId);
                 $this->releaseConnection($serverId);
                 unset($this->lastActivityAt[$serverId]);
                 unset($this->lastStatusAt[$serverId]);
@@ -341,201 +353,6 @@ class ArkAsaManager extends Command
         ));
     }
 
-    private function runInstall(string $serverId): void
-    {
-        try {
-            $ark = $this->getConnection($serverId);
-
-            $exitCode = $ark->installOrUpdateStreaming(function (string $line, string $type) use ($serverId) {
-                broadcast(new ServerTaskOutput(
-                    serverId: $serverId,
-                    task: 'install',
-                    line: $line,
-                    type: $type,
-                ));
-            });
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'install',
-                success: $exitCode === 0,
-                exitCode: $exitCode,
-            ));
-        } catch (\Throwable $e) {
-            $this->error("[INSTALL] Error for server {$serverId}: {$e->getMessage()}");
-            $this->reconnect($serverId);
-
-            broadcast(new ServerTaskOutput(
-                serverId: $serverId,
-                task: 'install',
-                line: "Error: {$e->getMessage()}",
-                type: 'stderr',
-            ));
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'install',
-                success: false,
-                exitCode: -1,
-            ));
-        }
-    }
-
-    private function runStart(string $serverId, ?string $profileId): void
-    {
-        try {
-            $ark = $this->getConnection($serverId);
-
-            $profile = $profileId
-                ? GameServerProfile::find($profileId)
-                : GameServerProfile::where('game_server_id', $serverId)->active()->first();
-
-            $map = $profile?->map ?? 'TheIsland_WP';
-            $options = [
-                'SessionName' => $profile?->session_name ?? 'ARK Server',
-                'Port' => (string) ($profile?->game_port ?? 7777),
-                'QueryPort' => (string) ($profile?->query_port ?? 27015),
-                'RCONPort' => (string) ($profile?->rcon_port ?? 27020),
-                'RCONEnabled' => 'True',
-            ];
-
-            if ($profile?->admin_password) {
-                $options['ServerAdminPassword'] = $profile->admin_password;
-            }
-
-            if ($profile?->server_password) {
-                $options['ServerPassword'] = $profile->server_password;
-            }
-
-            if ($profile?->max_players) {
-                $options['MaxPlayers'] = (string) $profile->max_players;
-            }
-
-            $flags = [];
-            if ($profile && ! $profile->battleye_enabled) {
-                $flags[] = '-NoBattlEye';
-            }
-
-            if ($profile?->mods) {
-                $enabledMods = collect($profile->mods)
-                    ->filter(fn (array $mod): bool => ($mod['is_enabled'] ?? true));
-
-                $activeMods = $enabledMods
-                    ->filter(fn (array $mod): bool => ! $mod['is_passive'])
-                    ->pluck('mod_id')
-                    ->implode(',');
-
-                $passiveMods = $enabledMods
-                    ->filter(fn (array $mod): bool => $mod['is_passive'])
-                    ->pluck('mod_id')
-                    ->implode(',');
-
-                if ($activeMods) {
-                    $flags[] = "-mods={$activeMods}";
-                }
-
-                if ($passiveMods) {
-                    $flags[] = "-passivemods={$passiveMods}";
-                }
-            }
-
-            $result = $ark->start($map, $options, $flags);
-
-            broadcast(new ServerTaskOutput(
-                serverId: $serverId,
-                task: 'start',
-                line: $result['stdout'] ?: 'Server start command sent.',
-                type: 'stdout',
-            ));
-
-            if ($result['stderr']) {
-                broadcast(new ServerTaskOutput(
-                    serverId: $serverId,
-                    task: 'start',
-                    line: $result['stderr'],
-                    type: 'stderr',
-                ));
-            }
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'start',
-                success: $result['exit_code'] === 0,
-                exitCode: $result['exit_code'],
-            ));
-        } catch (\Throwable $e) {
-            $this->error("[START] Error for server {$serverId}: {$e->getMessage()}");
-            $this->reconnect($serverId);
-
-            broadcast(new ServerTaskOutput(
-                serverId: $serverId,
-                task: 'start',
-                line: "Error: {$e->getMessage()}",
-                type: 'stderr',
-            ));
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'start',
-                success: false,
-                exitCode: -1,
-            ));
-        }
-    }
-
-    private function runStop(string $serverId): void
-    {
-        try {
-            $ark = $this->getConnection($serverId);
-            $result = $ark->stop();
-
-            $this->serverRunning[$serverId] = false;
-            unset($this->lastLogHash[$serverId], $this->lastConsoleHash[$serverId]);
-
-            broadcast(new ServerTaskOutput(
-                serverId: $serverId,
-                task: 'stop',
-                line: $result['stdout'] ?: 'Stop command sent.',
-                type: 'stdout',
-            ));
-
-            if ($result['stderr']) {
-                broadcast(new ServerTaskOutput(
-                    serverId: $serverId,
-                    task: 'stop',
-                    line: $result['stderr'],
-                    type: 'stderr',
-                ));
-            }
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'stop',
-                success: $result['exit_code'] === 0,
-                exitCode: $result['exit_code'],
-            ));
-        } catch (\Throwable $e) {
-            $this->error("[STOP] Error for server {$serverId}: {$e->getMessage()}");
-            $this->serverRunning[$serverId] = false;
-            unset($this->lastLogHash[$serverId], $this->lastConsoleHash[$serverId]);
-            $this->reconnect($serverId);
-
-            broadcast(new ServerTaskOutput(
-                serverId: $serverId,
-                task: 'stop',
-                line: "Error: {$e->getMessage()}",
-                type: 'stderr',
-            ));
-
-            broadcast(new ServerTaskCompleted(
-                serverId: $serverId,
-                task: 'stop',
-                success: false,
-                exitCode: -1,
-            ));
-        }
-    }
-
     private function getConnection(string $serverId): ArkServerService
     {
         if (isset($this->connections[$serverId])) {
@@ -558,6 +375,27 @@ class ArkAsaManager extends Command
     {
         unset($this->connections[$serverId]);
         $this->info("[POOL] Dropped connection for server {$serverId}, will reconnect on next use");
+    }
+
+    private function scheduleRelease(string $serverId): void
+    {
+        $this->cancelPendingRelease($serverId);
+
+        $this->info("[POOL] Scheduling connection release for server {$serverId} in {$this->releaseCooldown}s");
+
+        $this->releaseTimers[$serverId] = Loop::addTimer($this->releaseCooldown, function () use ($serverId) {
+            unset($this->releaseTimers[$serverId]);
+            $this->releaseConnection($serverId);
+        });
+    }
+
+    private function cancelPendingRelease(string $serverId): void
+    {
+        if (isset($this->releaseTimers[$serverId])) {
+            Loop::cancelTimer($this->releaseTimers[$serverId]);
+            unset($this->releaseTimers[$serverId]);
+            $this->info("[POOL] Cancelled pending release for server {$serverId} (watcher rejoined)");
+        }
     }
 
     private function releaseConnection(string $serverId): void
@@ -598,6 +436,10 @@ class ArkAsaManager extends Command
 
     private function shutdown(): void
     {
+        foreach ($this->releaseTimers as $timer) {
+            Loop::cancelTimer($timer);
+        }
+        $this->releaseTimers = [];
         $this->connections = [];
         Loop::stop();
     }

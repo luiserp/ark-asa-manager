@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GameServer;
 use App\Models\GameServerProfile;
 use App\Models\Integration;
 use App\Services\CurseForge\CurseForgeService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,6 +16,28 @@ class ProfileModsController extends Controller
 {
     public function index(GameServerProfile $profile): Response
     {
+        return Inertia::render('profiles/Mods', [
+            'profile' => $profile->only('id', 'name'),
+            'server' => $profile->gameServer->only('id', 'name'),
+            'mods' => $profile->mods ?? [],
+            'curseforgeUrl' => config('ark.curseforge_url'),
+            'hasCurseforgeIntegration' => Integration::where('provider', 'curseforge')
+                ->where('is_active', true)
+                ->exists(),
+        ]);
+    }
+
+    public function active(): Response|RedirectResponse
+    {
+        $server = GameServer::active()->first();
+        $profile = $server
+            ? GameServerProfile::where('game_server_id', $server->id)->active()->first()
+            : null;
+
+        if (! $profile) {
+            return to_route('profiles.index');
+        }
+
         return Inertia::render('profiles/Mods', [
             'profile' => $profile->only('id', 'name'),
             'server' => $profile->gameServer->only('id', 'name'),

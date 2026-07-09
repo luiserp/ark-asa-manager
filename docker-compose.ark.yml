@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: docker/ark-server/Dockerfile
-    container_name: ark-sa-server
+    container_name: ${CONTAINER_NAME:-ark-sa-server}
     restart: unless-stopped
     ports:
       - '${GAME_PORT:-7777}:7777/udp'
