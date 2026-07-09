@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import IntegrationController from '@/actions/App/Http/Controllers/IntegrationController';
-import { Plus, Trash2, Pencil } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Trash2, Pencil, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -78,7 +79,22 @@ function providerLabel(key: string): string {
 
     <div class="flex h-full flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
-            <Heading title="Integrations" description="Manage API keys for external services. These are shared across all servers." />
+            <Heading title="Integrations" description="Manage API keys for external services. These are shared across all servers.">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Integrations</p>
+                                <p class="mb-1">Store API keys for external services like CurseForge (mod search and installation). Keys are encrypted and shared across all servers in your team.</p>
+                                <p>Toggle integrations on/off without deleting them.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <Link :href="IntegrationController.create.url()">
                 <Button size="sm" class="cursor-pointer">
                     <Plus class="mr-2 h-4 w-4" />

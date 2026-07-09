@@ -138,7 +138,7 @@ class ArkServerService
             "echo 'cleanup done'",
         ]);
 
-        return $this->ssh->execute($command);
+        return $this->ssh->execute($command, timeout: 30);
     }
 
     /**

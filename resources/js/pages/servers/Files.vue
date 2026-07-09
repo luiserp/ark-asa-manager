@@ -23,7 +23,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { index as serversIndex } from '@/routes/servers';
-import { Folder, File, FileSymlink, ArrowUp, Download, Pencil, Loader2, Save } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Folder, File, FileSymlink, ArrowUp, Download, Pencil, Loader2, Save, HelpCircle } from '@lucide/vue';
 
 interface FileEntry {
     name: string;
@@ -178,7 +179,22 @@ async function saveEditor() {
     <Head :title="`Files - ${server.name}`" />
 
     <div class="flex flex-col gap-6 p-4">
-        <Heading title="Files" :description="`Browse files on ${server.name}`" />
+        <Heading title="Files" :description="`Browse files on ${server.name}`">
+            <template #tooltip>
+                <TooltipProvider :delay-duration="300">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent class="max-w-sm text-left" side="bottom">
+                            <p class="font-semibold mb-1">File Browser</p>
+                            <p class="mb-1">Browse and manage files on the remote server via SSH. Click folders to navigate, use the pencil icon to edit text files (INI, config, logs, etc.), and download files directly.</p>
+                            <p>Changes are saved directly to the remote server.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </template>
+        </Heading>
 
         <!-- Breadcrumb Path -->
         <div class="flex items-center gap-1 text-sm">

@@ -104,6 +104,7 @@ function gaugeColor(percent: number): string {
 </script>
 
 <template>
+
     <Head title="Dashboard" />
 
     <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
@@ -166,13 +167,15 @@ function gaugeColor(percent: number): string {
         </div>
 
         <!-- Empty State -->
-        <div v-if="servers.length === 0" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center">
+        <div v-if="servers.length === 0"
+            class="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center">
             <Server class="mb-4 h-12 w-12 text-muted-foreground/50" />
             <h3 class="text-lg font-semibold">No servers yet</h3>
             <p class="mt-1 max-w-sm text-sm text-muted-foreground">
                 Add a server to start managing your ARK: Survival Ascended dedicated servers.
             </p>
-            <Link :href="serversIndex()" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Link :href="serversIndex()"
+                class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 <Server class="h-4 w-4" />
                 Add Server
             </Link>
@@ -191,13 +194,8 @@ function gaugeColor(percent: number): string {
 
                 <CardHeader class="pb-3">
                     <div class="flex items-center justify-between">
-                        <Link
-                            :href="GameServerController.toggleActive.url({ server: server.id })"
-                            method="patch"
-                            as="button"
-                            class="group flex items-center gap-2 text-left"
-                            preserve-scroll
-                        >
+                        <Link :href="GameServerController.toggleActive.url({ server: server.id })" method="patch"
+                            as="button" class="group flex items-center gap-2 text-left cursor-pointer" preserve-scroll>
                             <CardTitle class="text-base group-hover:underline">{{ server.name }}</CardTitle>
                         </Link>
                         <div class="flex items-center gap-2">
@@ -208,14 +206,10 @@ function gaugeColor(percent: number): string {
                                 <template #fallback>
                                     <Badge variant="outline" class="animate-pulse text-xs">...</Badge>
                                 </template>
-                                <Badge
-                                    :variant="metric(server.id)?.running ? 'default' : 'outline'"
-                                    :class="[
-                                        metric(server.id)?.running ? 'bg-green-600 hover:bg-green-700' : '',
-                                        !metric(server.id)?.connected ? 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400' : '',
-                                    ]"
-                                    class="text-xs"
-                                >
+                                <Badge :variant="metric(server.id)?.running ? 'default' : 'outline'" :class="[
+                                    metric(server.id)?.running ? 'bg-green-600 hover:bg-green-700' : '',
+                                    !metric(server.id)?.connected ? 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400' : '',
+                                ]" class="text-xs">
                                     <Circle class="mr-1 h-2 w-2 fill-current" />
                                     {{ statusLabel(metric(server.id)) }}
                                 </Badge>
@@ -256,15 +250,14 @@ function gaugeColor(percent: number): string {
                                             <Cpu class="h-3 w-3" /> CPU
                                         </span>
                                         <span class="font-mono font-medium">
-                                            {{ metric(server.id)?.cpu !== null ? `${metric(server.id)!.cpu!.toFixed(1)}%` : '—' }}
+                                            {{ metric(server.id)?.cpu !== null ?
+                                                `${metric(server.id)!.cpu!.toFixed(1)}%` : '—' }}
                                         </span>
                                     </div>
                                     <div class="h-2 overflow-hidden rounded-full bg-secondary">
-                                        <div
-                                            class="h-full rounded-full transition-all duration-500"
+                                        <div class="h-full rounded-full transition-all duration-500"
                                             :class="gaugeColor(metric(server.id)?.cpu ?? 0)"
-                                            :style="{ width: `${Math.min(100, metric(server.id)?.cpu ?? 0)}%` }"
-                                        />
+                                            :style="{ width: `${Math.min(100, metric(server.id)?.cpu ?? 0)}%` }" />
                                     </div>
                                 </div>
 
@@ -281,11 +274,9 @@ function gaugeColor(percent: number): string {
                                         </span>
                                     </div>
                                     <div class="h-2 overflow-hidden rounded-full bg-secondary">
-                                        <div
-                                            class="h-full rounded-full transition-all duration-500"
+                                        <div class="h-full rounded-full transition-all duration-500"
                                             :class="gaugeColor(memoryPercent(metric(server.id)))"
-                                            :style="{ width: `${memoryPercent(metric(server.id))}%` }"
-                                        />
+                                            :style="{ width: `${memoryPercent(metric(server.id))}%` }" />
                                     </div>
                                 </div>
 
@@ -293,7 +284,8 @@ function gaugeColor(percent: number): string {
                                 <div class="flex items-center justify-between text-xs text-muted-foreground">
                                     <span class="flex items-center gap-1">
                                         <UserCheck class="h-3 w-3" />
-                                        <span class="font-medium text-foreground">{{ metric(server.id)?.players ?? 0 }}</span>
+                                        <span class="font-medium text-foreground">{{ metric(server.id)?.players ?? 0
+                                            }}</span>
                                         / {{ metric(server.id)?.max_players ?? '?' }} players
                                     </span>
                                     <span v-if="metric(server.id)?.uptime" class="flex items-center gap-1">
@@ -305,7 +297,8 @@ function gaugeColor(percent: number): string {
                         </template>
 
                         <template v-else-if="metric(server.id)?.error">
-                            <div class="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                            <div
+                                class="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/50 dark:text-red-400">
                                 <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                 <span class="line-clamp-2">{{ metric(server.id)!.error }}</span>
                             </div>
@@ -314,7 +307,8 @@ function gaugeColor(percent: number): string {
                         <template v-else-if="metric(server.id)?.connected && !metric(server.id)?.running">
                             <div class="text-xs text-muted-foreground">
                                 Server is stopped. Start it from the
-                                <Link :href="ServerDetailController.index.url({ server: server.id })" class="font-medium text-foreground underline">
+                                <Link :href="ServerDetailController.index.url({ server: server.id })"
+                                    class="font-medium text-foreground underline">
                                     server details
                                 </Link>
                                 page.

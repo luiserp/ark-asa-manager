@@ -19,7 +19,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { index as profilesIndex } from '@/routes/profiles';
-import { Download, Save, Loader2, ServerCog, HardDriveDownload } from '@lucide/vue';
+import { Download, Save, Loader2, ServerCog, HardDriveDownload, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -191,7 +191,23 @@ onMounted(() => {
 
     <div class="flex h-full flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
-            <Heading :title="`Config: ${profile.name}`" description="Edit and manage configuration files for this profile." />
+            <Heading :title="`Config: ${profile.name}`" description="Edit and manage configuration files for this profile.">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Config Editor</p>
+                                <p class="mb-1">Edit <strong>GameUserSettings.ini</strong> and <strong>Game.ini</strong> for this profile. These files control hundreds of server settings like PvE mode, damage multipliers, stack sizes, and more.</p>
+                                <p class="mb-1"><strong>Import</strong> pulls the current file from the server. <strong>Save</strong> stores it in the profile. <strong>Apply</strong> writes it to the server (server must be stopped).</p>
+                                <p>Changes here require a server restart to take effect.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <div class="flex items-center gap-2">
                 <Badge v-if="dirty" variant="destructive">Unsaved</Badge>
                 <TooltipProvider :delay-duration="500">

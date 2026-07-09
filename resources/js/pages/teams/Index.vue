@@ -38,7 +38,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Check, Crown, Loader2, LogOut, Pencil, Plus, Trash2, Users, X } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Check, Crown, Loader2, LogOut, Pencil, Plus, Trash2, Users, X, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -123,7 +124,22 @@ function declineInvitation(invitation: PendingInvitation) {
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
-            <Heading title="Teams" description="Manage your teams and collaborations" />
+            <Heading title="Teams" description="Manage your teams and collaborations">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Teams</p>
+                                <p class="mb-1">Teams let you organize servers and share access with other users. Your personal team is created automatically.</p>
+                                <p>Create additional teams to collaborate — invite members, assign roles, and control who can manage servers and profiles.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
 
             <Dialog v-model:open="createDialogOpen">
                 <DialogTrigger as-child>

@@ -47,10 +47,12 @@ class StopGameServer implements ShouldQueue
                 ));
             }
 
+            $stopped = str_contains($result['stdout'], 'stopped') || str_contains($result['stdout'], 'force-killed');
+
             broadcast(new ServerTaskCompleted(
                 serverId: $this->serverId,
                 task: 'stop',
-                success: $result['exit_code'] === 0,
+                success: $result['exit_code'] === 0 || ($result['exit_code'] === -1 && $stopped),
                 exitCode: $result['exit_code'],
             ));
         } catch (\Throwable $e) {

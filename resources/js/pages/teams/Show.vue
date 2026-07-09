@@ -43,7 +43,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Crown, Loader2, LogOut, Mail, Trash2, UserPlus, X } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Crown, Loader2, LogOut, Mail, Trash2, UserPlus, X, HelpCircle } from '@lucide/vue';
 import { ref } from 'vue';
 
 interface TeamDetail {
@@ -143,7 +144,22 @@ function deleteTeam() {
 
     <div class="flex flex-col gap-6 p-4">
         <Heading :title="team.name"
-            :description="team.personal_team ? 'Your personal team' : 'Team settings and members'" />
+            :description="team.personal_team ? 'Your personal team' : 'Team settings and members'">
+            <template #tooltip>
+                <TooltipProvider :delay-duration="300">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent class="max-w-sm text-left" side="bottom">
+                            <p class="font-semibold mb-1">Team Settings</p>
+                            <p class="mb-1">Manage this team's name, members, and pending invitations. Team owners can invite new members, change roles, and remove members.</p>
+                            <p>Members can be assigned <strong>admin</strong> (full access) or <strong>member</strong> (limited) roles.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </template>
+        </Heading>
 
         <Card v-if="team.is_owner && !team.personal_team">
             <CardHeader>

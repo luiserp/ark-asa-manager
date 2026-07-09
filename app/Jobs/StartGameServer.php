@@ -60,7 +60,15 @@ class StartGameServer implements ShouldQueue
                 $options['MaxPlayers'] = (string) $profile->max_players;
             }
 
+            if ($profile?->dynamic_config_enabled) {
+                $options['CustomDynamicConfigUrl'] = route('dynamic-config.serve', $profile);
+            }
+
             $flags = [];
+            if ($profile?->dynamic_config_enabled) {
+                $flags[] = '-UseDynamicConfig';
+            }
+
             if ($profile && ! $profile->battleye_enabled) {
                 $flags[] = '-NoBattlEye';
             }

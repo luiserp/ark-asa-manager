@@ -442,7 +442,22 @@ onMounted(() => {
 
     <div class="flex h-full flex-col gap-4 overflow-hidden p-4">
         <div class="flex items-center justify-between">
-            <Heading :title="`Mods: ${profile.name}`" description="Manage CurseForge mods for this server profile. Mods are loaded in list order on server start." />
+            <Heading :title="`Mods: ${profile.name}`" description="Manage CurseForge mods for this server profile. Mods are loaded in list order on server start.">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Mod Manager</p>
+                                <p class="mb-1">Search and install mods from CurseForge. Drag to reorder — mods load in list order on server start. Toggle mods on/off without removing them.</p>
+                                <p>Mods are added to the launch command via <code class="rounded bg-muted px-1 text-xs">-mods=</code> flags. The server downloads them automatically on start.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <div class="flex items-center gap-2">
                 <Badge v-if="dirty" variant="destructive">Unsaved</Badge>
                 <TooltipProvider :delay-duration="500">

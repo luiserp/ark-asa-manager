@@ -44,7 +44,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { index, create } from '@/routes/profiles';
-import { Plus, Pencil, Trash2, Copy, FileCode, Blocks } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Pencil, Trash2, Copy, FileCode, Blocks, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -113,7 +114,22 @@ function confirmReplicate() {
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
-            <Heading title="Profiles" :description="`Manage launch profiles for ${server.name}`" />
+            <Heading title="Profiles" :description="`Manage launch profiles for ${server.name}`">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">What are profiles?</p>
+                                <p class="mb-1">Profiles define how the server launches: map, ports, passwords, player cap, and BattlEye settings. Each server can have multiple profiles but only one is active at a time.</p>
+                                <p>Switching profiles automatically deploys the config files (GameUserSettings.ini, Game.ini) to the server. The server must be stopped to switch.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <Button as-child>
                 <Link :href="create()">
                     <Plus class="mr-2 h-4 w-4" />

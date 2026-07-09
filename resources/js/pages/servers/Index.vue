@@ -46,7 +46,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { index, create } from '@/routes/servers';
-import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity, ArrowRightLeft } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity, ArrowRightLeft, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -156,7 +157,22 @@ function submitTransfer() {
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
-            <Heading title="Servers" description="Manage your ARK server instances" />
+            <Heading title="Servers" description="Manage your ARK server instances">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">What are servers?</p>
+                                <p class="mb-1">Servers represent remote machines where your ARK dedicated server is installed. Each server connects via SSH and can have multiple launch profiles.</p>
+                                <p>Select a server as "Current" to manage it from the sidebar — view details, browse files, check processes, and use RCON.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <Button as-child>
                 <Link :href="create()">
                     <Plus class="mr-2 h-4 w-4" />

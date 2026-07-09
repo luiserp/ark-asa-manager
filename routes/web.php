@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DynamicConfigController;
 use App\Http\Controllers\GameServerController;
 use App\Http\Controllers\GameServerProfileController;
 use App\Http\Controllers\IntegrationController;
@@ -82,11 +83,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('profiles/{profile}/config/apply', [ProfileConfigController::class, 'apply'])->name('profiles.config.apply');
     Route::post('profiles/{profile}/config/import', [ProfileConfigController::class, 'importFromServer'])->name('profiles.config.import');
 
+    Route::get('profiles/active/dynamic-config', [DynamicConfigController::class, 'active'])->name('profiles.active-dynamic-config');
+    Route::get('profiles/{profile}/dynamic-config', [DynamicConfigController::class, 'index'])->name('profiles.dynamic-config');
+    Route::post('profiles/{profile}/dynamic-config', [DynamicConfigController::class, 'update'])->name('profiles.dynamic-config.update');
+
     Route::get('profiles/active/mods', [ProfileModsController::class, 'active'])->name('profiles.active-mods');
     Route::get('profiles/{profile}/mods', [ProfileModsController::class, 'index'])->name('profiles.mods');
     Route::post('profiles/{profile}/mods', [ProfileModsController::class, 'store'])->name('profiles.mods.store');
     Route::get('profiles/{profile}/mods/search', [ProfileModsController::class, 'search'])->name('profiles.mods.search');
     Route::get('profiles/{profile}/mods/details', [ProfileModsController::class, 'details'])->name('profiles.mods.details');
 });
+
+// Public DynamicConfig endpoint (fetched by the ARK server, no auth required)
+Route::get('dynamic-config/{profile}', [DynamicConfigController::class, 'serve'])->name('dynamic-config.serve');
 
 require __DIR__.'/settings.php';

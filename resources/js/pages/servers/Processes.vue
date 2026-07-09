@@ -31,7 +31,8 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { index as serversIndex } from '@/routes/servers';
-import { RefreshCw, Skull, ChevronDown, ArrowUpDown, Cpu, MemoryStick, HardDrive } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { RefreshCw, Skull, ChevronDown, ArrowUpDown, Cpu, MemoryStick, HardDrive, HelpCircle } from '@lucide/vue';
 
 interface Process {
     pid: number;
@@ -165,7 +166,22 @@ async function killProcess(signal: 'TERM' | 'KILL') {
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
-            <Heading title="Processes" :description="`Running processes on ${server.name}`" />
+            <Heading title="Processes" :description="`Running processes on ${server.name}`">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Process Manager</p>
+                                <p class="mb-1">View all running processes on the server machine. Sort by CPU or memory usage to identify resource-heavy processes.</p>
+                                <p>You can send SIGTERM (graceful shutdown) or SIGKILL (force kill) to any process. Use this to manually stop a crashed or hung server process.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <Button variant="outline" size="sm" class="cursor-pointer" :disabled="refreshing" @click="refresh">
                 <RefreshCw class="mr-2 h-4 w-4" :class="{ 'animate-spin': refreshing }" />
                 Refresh

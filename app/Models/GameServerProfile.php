@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $game_user_settings_ini
  * @property string|null $game_ini
  * @property array<int, array{mod_id: string, name: string, is_passive: bool, is_enabled: bool}>|null $mods
+ * @property bool $dynamic_config_enabled
+ * @property array<string, mixed>|null $dynamic_config
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -52,6 +54,8 @@ class GameServerProfile extends Model
         'game_user_settings_ini',
         'game_ini',
         'mods',
+        'dynamic_config_enabled',
+        'dynamic_config',
         'is_active',
     ];
 
@@ -65,6 +69,8 @@ class GameServerProfile extends Model
             'battleye_enabled' => 'boolean',
             'extra_args' => 'array',
             'mods' => 'array',
+            'dynamic_config_enabled' => 'boolean',
+            'dynamic_config' => 'array',
             'is_active' => 'boolean',
             'admin_password' => 'encrypted',
             'server_password' => 'encrypted',

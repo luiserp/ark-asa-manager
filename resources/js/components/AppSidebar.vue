@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch, onUnmounted } from 'vue';
-import { Activity, Blocks, ChevronsUpDown, Circle, FileCode, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server, Terminal, Users } from '@lucide/vue';
+import { Activity, Blocks, ChevronsUpDown, Circle, FileCode, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server, Sliders, Terminal, Users } from '@lucide/vue';
 import echo from '@/echo';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
+import DynamicConfigController from '@/actions/App/Http/Controllers/DynamicConfigController';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
 import ProfileModsController from '@/actions/App/Http/Controllers/ProfileModsController';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
@@ -125,6 +126,11 @@ const profileNavItems = computed<NavItem[]>(() => {
             title: 'Config',
             href: ProfileConfigController.active.url(),
             icon: FileCode,
+        },
+        {
+            title: 'Dynamic Config',
+            href: DynamicConfigController.active.url(),
+            icon: Sliders,
         },
         {
             title: 'Mods',

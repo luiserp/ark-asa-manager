@@ -16,7 +16,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { index as serversIndex } from '@/routes/servers';
-import { Send, Terminal, Loader2, Play } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Send, Terminal, Loader2, Play, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -142,7 +143,22 @@ const categories: Record<string, string> = {
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
         <!-- Header -->
         <div class="flex shrink-0 items-center justify-between">
-            <Heading title="RCON Console" :description="`${server.host} · Remote server administration`" />
+            <Heading title="RCON Console" :description="`${server.host} · Remote server administration`">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">RCON Console</p>
+                                <p class="mb-1">Send admin commands to your running ARK server remotely. Type commands directly or click quick commands from the panel on the right.</p>
+                                <p>The server must be running with RCON enabled and an admin password set in the active profile.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <Badge variant="outline" class="gap-1.5">
                 <Terminal class="h-3 w-3" />
                 RCON

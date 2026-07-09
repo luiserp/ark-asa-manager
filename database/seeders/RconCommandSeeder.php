@@ -21,22 +21,17 @@ class RconCommandSeeder extends Seeder
             ['name' => 'Do Exit', 'command' => 'DoExit', 'category' => 'server', 'description' => 'Shuts down the server immediately', 'sort_order' => 8],
 
             // Player Management
-            ['name' => 'Kick Player', 'command' => 'KickPlayer <SteamID>', 'category' => 'players', 'description' => 'Kicks a player by their Steam ID', 'sort_order' => 10],
-            ['name' => 'Ban Player', 'command' => 'BanPlayer <SteamID>', 'category' => 'players', 'description' => 'Bans a player by their Steam ID', 'sort_order' => 11],
-            ['name' => 'Unban Player', 'command' => 'UnbanPlayer <SteamID>', 'category' => 'players', 'description' => 'Unbans a previously banned player', 'sort_order' => 12],
-            ['name' => 'White List Player', 'command' => 'AllowPlayerToJoinNoCheck <SteamID>', 'category' => 'players', 'description' => 'Adds a player to the server whitelist', 'sort_order' => 13],
-            ['name' => 'Remove Whitelist', 'command' => 'DisallowPlayerToJoinNoCheck <SteamID>', 'category' => 'players', 'description' => 'Removes a player from the server whitelist', 'sort_order' => 14],
-
-            // Dino & Spawning
-            ['name' => 'Destroy All Enemies', 'command' => 'DestroyAllEnemies', 'category' => 'dinos', 'description' => 'Destroys all hostile creatures', 'sort_order' => 20],
-            ['name' => 'Force Tame Range', 'command' => 'DoTame', 'category' => 'dinos', 'description' => 'Force tames the targeted dinosaur', 'sort_order' => 21],
+            ['name' => 'Kick Player', 'command' => 'KickPlayer <EOS_ID>', 'category' => 'players', 'description' => 'Kicks a player by their EOS ID (use ListPlayers to find it)', 'sort_order' => 10],
+            ['name' => 'Ban Player', 'command' => 'BanPlayer <EOS_ID>', 'category' => 'players', 'description' => 'Bans a player by their EOS ID (use ListPlayers to find it)', 'sort_order' => 11],
+            ['name' => 'Unban Player', 'command' => 'UnbanPlayer <EOS_ID>', 'category' => 'players', 'description' => 'Unbans a previously banned player by their EOS ID', 'sort_order' => 12],
+            ['name' => 'White List Player', 'command' => 'AllowPlayerToJoinNoCheck <EOS_ID>', 'category' => 'players', 'description' => 'Adds a player to the server whitelist by their EOS ID', 'sort_order' => 13],
+            ['name' => 'Remove Whitelist', 'command' => 'DisallowPlayerToJoinNoCheck <EOS_ID>', 'category' => 'players', 'description' => 'Removes a player from the server whitelist by their EOS ID', 'sort_order' => 14],
 
             // World
-            ['name' => 'Start Rain', 'command' => 'ce start_rain', 'category' => 'world', 'description' => 'Triggers a rain weather event', 'sort_order' => 30],
-            ['name' => 'Stop Rain', 'command' => 'ce stop_rain', 'category' => 'world', 'description' => 'Stops the current rain weather event', 'sort_order' => 31],
-            ['name' => 'Start Fog', 'command' => 'ce start_fog', 'category' => 'world', 'description' => 'Triggers a fog weather event', 'sort_order' => 32],
-            ['name' => 'Stop Fog', 'command' => 'ce stop_fog', 'category' => 'world', 'description' => 'Stops the current fog weather event', 'sort_order' => 33],
-            ['name' => 'Destroy Structures', 'command' => 'DestroyStructures', 'category' => 'world', 'description' => 'Destroys all structures owned by all players', 'sort_order' => 34],
+            ['name' => 'Destroy Structures', 'command' => 'DestroyStructures', 'category' => 'world', 'description' => 'Destroys all structures owned by all players', 'sort_order' => 20],
+            ['name' => 'Pause Server', 'command' => 'SetGlobalPause true', 'category' => 'world', 'description' => 'Pauses the server (freezes all AI, crafting, and timers)', 'sort_order' => 21],
+            ['name' => 'Unpause Server', 'command' => 'SetGlobalPause false', 'category' => 'world', 'description' => 'Unpauses a previously paused server', 'sort_order' => 22],
+            ['name' => 'Force Update Dynamic Config', 'command' => 'ForceUpdateDynamicConfig', 'category' => 'world', 'description' => 'Forces the server to reload its DynamicConfig file without a restart', 'sort_order' => 23],
 
             // Info & Debug
             ['name' => 'Show Message of the Day', 'command' => 'ShowMessageOfTheDay', 'category' => 'info', 'description' => 'Displays the current message of the day', 'sort_order' => 40],

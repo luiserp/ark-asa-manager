@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { index as serversIndex } from '@/routes/servers';
-import { Play, Square, Download, Loader2, Cpu, MemoryStick, HardDrive, Users, Clock, Terminal, ScrollText, MonitorCog, Eye } from '@lucide/vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Play, Square, Download, Loader2, Cpu, MemoryStick, HardDrive, Users, Clock, Terminal, ScrollText, MonitorCog, Eye, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -247,7 +248,23 @@ onUnmounted(() => {
     <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden p-4">
         <!-- Header -->
         <div class="flex shrink-0 items-center justify-between">
-            <Heading :title="server.name" :description="`${server.host}:${server.port}`" />
+            <Heading :title="server.name" :description="`${server.host}:${server.port}`">
+                <template #tooltip>
+                    <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <HelpCircle class="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent class="max-w-sm text-left" side="bottom">
+                                <p class="font-semibold mb-1">Server Details</p>
+                                <p class="mb-1">Real-time server metrics (CPU, memory, disk, players, uptime) update automatically via WebSocket.</p>
+                                <p class="mb-1">Use <strong>Install</strong> to download or update SteamCMD, <strong>Start</strong> to launch the server using the active profile, and <strong>Stop</strong> to shut it down gracefully.</p>
+                                <p>The tabs show live task output, engine logs, and console output from the server process.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </template>
+            </Heading>
             <div class="flex items-center gap-2">
                 <Loader2 v-if="loadingStatus" class="h-4 w-4 animate-spin text-muted-foreground" />
                 <Badge v-if="status.error" variant="destructive">Unreachable</Badge>
