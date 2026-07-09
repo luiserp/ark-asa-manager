@@ -7,6 +7,20 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
+Broadcast::channel('server-status.{serverId}', function ($user, $serverId) {
+    if (! $user) {
+        return false;
+    }
+
+    Redis::publish('ark:subscriptions', json_encode([
+        'serverId' => $serverId,
+        'action' => 'join',
+        'userId' => "sidebar:{$user->id}",
+    ]));
+
+    return true;
+});
+
 Broadcast::channel('server.{serverId}', function ($user, $serverId) {
     if (! $user) {
         return null;

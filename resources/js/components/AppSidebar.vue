@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { Activity, BookOpen, Blocks, ChevronsUpDown, Circle, FileCode, FolderGit2, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server, Terminal } from '@lucide/vue';
 import echo from '@/echo';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
@@ -158,14 +158,12 @@ const statusLabel = computed(() => {
 });
 
 function subscribeToStatus(serverId: string) {
-    if (subscribedServerId !== serverId) {
-        unsubscribeFromStatus();
-        serverStatus.value = null;
-    }
+    if (subscribedServerId === serverId) return;
 
+    unsubscribeFromStatus();
     subscribedServerId = serverId;
 
-    echo.join(`server.${serverId}`)
+    echo.private(`server-status.${serverId}`)
         .listen('.ServerStatusUpdated', (e: { running: boolean; installed: boolean; error: string | null }) => {
             serverStatus.value = { running: e.running, installed: e.installed, error: e.error };
         });
@@ -173,7 +171,7 @@ function subscribeToStatus(serverId: string) {
 
 function unsubscribeFromStatus() {
     if (!subscribedServerId) return;
-    echo.leave(`server.${subscribedServerId}`);
+    echo.leave(`server-status.${subscribedServerId}`);
     subscribedServerId = null;
     serverStatus.value = null;
 }
@@ -185,12 +183,6 @@ watch(() => activeServer.value?.id, (newId) => {
         unsubscribeFromStatus();
     }
 }, { immediate: true });
-
-router.on('navigate', () => {
-    if (activeServer.value?.id) {
-        subscribeToStatus(activeServer.value.id);
-    }
-});
 
 onUnmounted(() => {
     unsubscribeFromStatus();

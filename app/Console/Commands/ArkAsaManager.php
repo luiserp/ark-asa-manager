@@ -18,6 +18,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use React\EventLoop\Loop;
+use React\EventLoop\TimerInterface;
 
 #[Signature('app:ark-asa-manager')]
 #[Description('Long-running daemon that manages ARK servers with persistent SSH connections')]
@@ -26,7 +27,7 @@ class ArkAsaManager extends Command
     /** @var array<string, ArkServerService> */
     private array $connections = [];
 
-    /** @var array<string, list<int>> */
+    /** @var array<string, list<string>> */
     private array $watchers = [];
 
     /** @var array<string, float> */
@@ -44,7 +45,7 @@ class ArkAsaManager extends Command
     /** @var array<string, bool> */
     private array $serverRunning = [];
 
-    /** @var array<string, \React\EventLoop\TimerInterface> */
+    /** @var array<string, TimerInterface> */
     private array $releaseTimers = [];
 
     private int $statusInterval;
@@ -152,18 +153,20 @@ class ArkAsaManager extends Command
         if ($action === 'join' && $userId) {
             $this->cancelPendingRelease($serverId);
 
+            $key = (string) $userId;
             $this->watchers[$serverId] ??= [];
-            if (! in_array((int) $userId, $this->watchers[$serverId])) {
-                $this->watchers[$serverId][] = (int) $userId;
+            if (! in_array($key, $this->watchers[$serverId])) {
+                $this->watchers[$serverId][] = $key;
             }
-            $this->info("[SUB] User {$userId} watching server {$serverId} (total: ".count($this->watchers[$serverId]).')');
+            $this->info("[SUB] {$key} watching server {$serverId} (total: ".count($this->watchers[$serverId]).')');
 
             $this->pushImmediateStatus($serverId);
         } elseif ($action === 'leave' && $userId) {
+            $key = (string) $userId;
             $this->watchers[$serverId] = array_values(
-                array_filter($this->watchers[$serverId] ?? [], fn ($id) => $id !== (int) $userId)
+                array_filter($this->watchers[$serverId] ?? [], fn ($id) => $id !== $key)
             );
-            $this->info("[SUB] User {$userId} left server {$serverId} (remaining: ".count($this->watchers[$serverId]).')');
+            $this->info("[SUB] {$key} left server {$serverId} (remaining: ".count($this->watchers[$serverId]).')');
 
             if (empty($this->watchers[$serverId])) {
                 unset($this->watchers[$serverId]);

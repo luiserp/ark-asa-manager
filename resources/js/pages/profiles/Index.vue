@@ -108,6 +108,7 @@ function confirmReplicate() {
 </script>
 
 <template>
+
     <Head title="Profiles" />
 
     <div class="flex flex-col gap-6 p-4">
@@ -121,14 +122,16 @@ function confirmReplicate() {
             </Button>
         </div>
 
-        <div v-if="profiles.length === 0" class="rounded-xl border border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
+        <div v-if="profiles.length === 0"
+            class="rounded-xl border border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
             <p class="text-gray-500 dark:text-gray-400">No profiles yet.</p>
             <Button as-child class="mt-4">
                 <Link :href="create()">Create your first profile</Link>
             </Button>
         </div>
 
-        <RadioGroup :model-value="activeProfileId" @update:model-value="setActive($event as string)" class="rounded-xl border">
+        <RadioGroup :model-value="activeProfileId" @update:model-value="setActive($event as string)"
+            class="rounded-xl border">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -136,14 +139,15 @@ function confirmReplicate() {
                         <TableHead>Map</TableHead>
                         <TableHead>Session</TableHead>
                         <TableHead>Players</TableHead>
-                        <TableHead>Active</TableHead>
+                        <TableHead>Current</TableHead>
                         <TableHead class="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="profile in profiles" :key="profile.id">
                         <TableCell class="font-medium">
-                            <Link :href="ProfileConfigController.index.url({ profile: profile.id })" class="hover:underline">
+                            <Link :href="ProfileConfigController.index.url({ profile: profile.id })"
+                                class="hover:underline">
                                 {{ profile.name }}
                             </Link>
                         </TableCell>
@@ -167,7 +171,8 @@ function confirmReplicate() {
                                         <Blocks class="h-4 w-4" />
                                     </Link>
                                 </Button>
-                                <Button variant="ghost" size="icon" title="Replicate" @click="openReplicateDialog(profile)">
+                                <Button variant="ghost" size="icon" title="Replicate"
+                                    @click="openReplicateDialog(profile)">
                                     <Copy class="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" as-child>

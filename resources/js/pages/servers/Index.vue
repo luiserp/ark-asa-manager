@@ -110,6 +110,7 @@ function replicateServer(server: GameServer) {
 </script>
 
 <template>
+
     <Head title="Servers" />
 
     <div class="flex flex-col gap-6 p-4">
@@ -123,28 +124,31 @@ function replicateServer(server: GameServer) {
             </Button>
         </div>
 
-        <div v-if="servers.length === 0" class="rounded-xl border border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
+        <div v-if="servers.length === 0"
+            class="rounded-xl border border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
             <p class="text-gray-500 dark:text-gray-400">No servers configured yet.</p>
             <Button as-child class="mt-4">
                 <Link :href="create()">Add your first server</Link>
             </Button>
         </div>
 
-        <RadioGroup :model-value="activeServerId" @update:model-value="setActive($event as string)" class="rounded-xl border">
+        <RadioGroup :model-value="activeServerId" @update:model-value="setActive($event as string)"
+            class="rounded-xl border">
             <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Host</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Active</TableHead>
+                        <TableHead>Current</TableHead>
                         <TableHead class="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="server in servers" :key="server.id">
                         <TableCell class="font-medium">
-                            <Link :href="ServerDetailController.index.url({ server: server.id })" class="hover:underline">
+                            <Link :href="ServerDetailController.index.url({ server: server.id })"
+                                class="hover:underline">
                                 {{ server.name }}
                             </Link>
                         </TableCell>
@@ -155,7 +159,8 @@ function replicateServer(server: GameServer) {
                             <Badge v-else-if="statuses[server.id]?.running" variant="default" class="bg-green-600">
                                 Running
                                 <template v-if="statuses[server.id]?.players != null">
-                                    · {{ statuses[server.id].players }}<span v-if="statuses[server.id]?.maxPlayers">/{{ statuses[server.id].maxPlayers }}</span>
+                                    · {{ statuses[server.id].players }}<span v-if="statuses[server.id]?.maxPlayers">/{{
+                                        statuses[server.id].maxPlayers }}</span>
                                 </template>
                             </Badge>
                             <Badge v-else-if="statuses[server.id]?.installed" variant="secondary">Stopped</Badge>
@@ -200,7 +205,8 @@ function replicateServer(server: GameServer) {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Delete server?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                This will remove "{{ server.name }}" from the application. This action cannot be undone.
+                                                This will remove "{{ server.name }}" from the application. This action
+                                                cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>

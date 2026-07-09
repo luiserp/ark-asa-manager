@@ -45,6 +45,9 @@ class StartGameServer implements ShouldQueue
                 'RCONEnabled' => 'True',
             ];
 
+            $this->emit("Starting server with map: {$map}");
+            $this->emit('Starting server with options: '.json_encode($options));
+
             if ($profile?->admin_password) {
                 $options['ServerAdminPassword'] = $profile->admin_password;
             }
@@ -85,7 +88,7 @@ class StartGameServer implements ShouldQueue
                 }
             }
 
-            $this->emit("Starting server with map: {$map}");
+            $this->emit('Starting server with flags: '.json_encode($flags));
 
             $result = $ark->start($map, $options, $flags);
 
