@@ -14,19 +14,22 @@ use Thedudeguy\Rcon;
 
 class ServerRconController extends Controller
 {
-    public function active(): Response|RedirectResponse
+    public function active(Request $request): Response|RedirectResponse
     {
-        $server = GameServer::active()->first();
+        $server = $request->user()->currentServer();
 
         if (! $server) {
             return to_route('servers.index');
         }
 
-        return $this->index($server);
+        return $this->index($request, $server);
     }
 
-    public function index(GameServer $server): Response
+    public function index(Request $request, GameServer $server): Response
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $commands = RconCommand::orderBy('category')
             ->orderBy('sort_order')
             ->get();
@@ -39,6 +42,9 @@ class ServerRconController extends Controller
 
     public function execute(Request $request, GameServer $server): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $data = $request->validate([
             'command' => ['required', 'string', 'max:500'],
         ]);

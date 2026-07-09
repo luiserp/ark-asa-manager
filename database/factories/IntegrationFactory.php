@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Integration;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,6 +16,7 @@ class IntegrationFactory extends Factory
     public function definition(): array
     {
         return [
+            'team_id' => Team::factory(),
             'provider' => fake()->unique()->randomElement(['curseforge', 'openai', 'claude', 'other']),
             'label' => fake()->optional()->words(2, true),
             'api_key' => fake()->sha256(),

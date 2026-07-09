@@ -4,17 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GameServerRequest;
 use App\Models\GameServer;
+use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class GameServerController extends Controller
 {
-    public function index(): Response
+    private function currentTeam(Request $request): Team
     {
+        return $request->user()->currentTeam ?? abort(403);
+    }
+
+    public function index(Request $request): Response
+    {
+        $team = $this->currentTeam($request);
+
         return Inertia::render('servers/Index', [
-            'servers' => GameServer::latest()->get(),
+            'servers' => $team->servers()->latest()->get(),
         ]);
     }
 
@@ -36,24 +46,28 @@ class GameServerController extends Controller
 
     public function store(GameServerRequest $request): RedirectResponse
     {
+        $team = $this->currentTeam($request);
         $data = $request->safe()->except('ssh_key');
 
         $keyPath = $request->file('ssh_key')->store('ssh-keys', 'local');
         $data['ssh_key_path'] = Storage::disk('local')->path($keyPath);
 
-        if (! GameServer::exists()) {
-            $data['is_active'] = true;
-        }
+        $server = $team->servers()->create($data);
 
-        GameServer::create($data);
+        if (! $request->user()->currentServer()) {
+            $request->user()->switchServer($server);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Server created.']);
 
         return to_route('servers.index');
     }
 
-    public function edit(GameServer $server): Response
+    public function edit(Request $request, GameServer $server): Response
     {
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
+
         return Inertia::render('servers/Edit', [
             'server' => $server,
         ]);
@@ -61,6 +75,9 @@ class GameServerController extends Controller
 
     public function update(GameServerRequest $request, GameServer $server): RedirectResponse
     {
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
+
         $data = $request->safe()->except('ssh_key');
 
         if ($request->hasFile('ssh_key')) {
@@ -78,23 +95,23 @@ class GameServerController extends Controller
         return to_route('servers.index');
     }
 
-    public function toggleActive(GameServer $server): RedirectResponse
+    public function toggleActive(Request $request, GameServer $server): RedirectResponse
     {
-        if ($server->is_active) {
-            return back();
-        }
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
 
-        GameServer::where('is_active', true)->update(['is_active' => false]);
-        $server->update(['is_active' => true]);
+        $request->user()->switchServer($server);
 
         return back();
     }
 
-    public function replicate(GameServer $server): RedirectResponse
+    public function replicate(Request $request, GameServer $server): RedirectResponse
     {
-        $clone = $server->replicate(['is_active']);
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
+
+        $clone = $server->replicate();
         $clone->name = $server->name.' (Copy)';
-        $clone->is_active = false;
         $clone->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Server replicated.']);
@@ -102,8 +119,38 @@ class GameServerController extends Controller
         return to_route('servers.index');
     }
 
-    public function destroy(GameServer $server): RedirectResponse
+    public function transfer(Request $request, GameServer $server): RedirectResponse
     {
+        $user = $request->user();
+        $sourceTeam = $this->currentTeam($request);
+        abort_unless($server->team_id === $sourceTeam->id, 403);
+        abort_unless($sourceTeam->isOwner($user), 403);
+
+        $data = $request->validate([
+            'team_id' => ['required', 'string', 'exists:teams,id'],
+        ]);
+
+        $targetTeam = Team::findOrFail($data['team_id']);
+        abort_unless($user->belongsToTeam($targetTeam), 403);
+        abort_if($targetTeam->id === $sourceTeam->id, 422);
+
+        DB::table('team_user')
+            ->where('team_id', $sourceTeam->id)
+            ->where('current_server_id', $server->id)
+            ->update(['current_server_id' => null]);
+
+        $server->update(['team_id' => $targetTeam->id]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Server transferred to {$targetTeam->name}."]);
+
+        return to_route('servers.index');
+    }
+
+    public function destroy(Request $request, GameServer $server): RedirectResponse
+    {
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
+
         $oldPath = str_replace(Storage::disk('local')->path(''), '', $server->ssh_key_path);
         Storage::disk('local')->delete($oldPath);
 

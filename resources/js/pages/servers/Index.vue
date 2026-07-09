@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, onMounted, onUnmounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, reactive, ref, onMounted, onUnmounted } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import echo from '@/echo';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
@@ -10,6 +10,14 @@ import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -29,8 +37,16 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { index, create } from '@/routes/servers';
-import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity } from '@lucide/vue';
+import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity, ArrowRightLeft } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -49,7 +65,6 @@ interface GameServer {
     host: string;
     port: number;
     username: string;
-    is_active: boolean;
 }
 
 interface ServerStatus {
@@ -64,7 +79,8 @@ const props = defineProps<{
     servers: GameServer[];
 }>();
 
-const activeServerId = computed(() => props.servers.find(s => s.is_active)?.id ?? '');
+const page = usePage();
+const activeServerId = computed(() => (page.props.activeServer as { id: string } | null)?.id ?? '');
 const statuses = reactive<Record<string, ServerStatus>>({});
 
 let csrfToken = '';
@@ -107,6 +123,31 @@ function deleteServer(server: GameServer) {
 function replicateServer(server: GameServer) {
     router.post(GameServerController.replicate.url({ server: server.id }));
 }
+
+const currentTeam = computed(() => page.props.currentTeam as { id: string; is_owner: boolean } | null);
+const isTeamOwner = computed(() => currentTeam.value?.is_owner ?? false);
+const allTeams = computed(() => (page.props.teams as { id: string; name: string }[]).filter(t => t.id !== currentTeam.value?.id));
+
+const transferDialogOpen = ref(false);
+const transferServer = ref<GameServer | null>(null);
+const transferTargetTeamId = ref('');
+
+function openTransferDialog(server: GameServer) {
+    transferServer.value = server;
+    transferTargetTeamId.value = '';
+    transferDialogOpen.value = true;
+}
+
+function submitTransfer() {
+    if (!transferServer.value || !transferTargetTeamId.value) return;
+    router.post(GameServerController.transfer.url({ server: transferServer.value.id }), {
+        team_id: transferTargetTeamId.value,
+    }, {
+        onSuccess: () => {
+            transferDialogOpen.value = false;
+        },
+    });
+}
 </script>
 
 <template>
@@ -132,96 +173,135 @@ function replicateServer(server: GameServer) {
             </Button>
         </div>
 
-        <RadioGroup :model-value="activeServerId" @update:model-value="setActive($event as string)"
-            class="rounded-xl border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Host</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Current</TableHead>
-                        <TableHead class="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow v-for="server in servers" :key="server.id">
-                        <TableCell class="font-medium">
-                            <Link :href="ServerDetailController.index.url({ server: server.id })"
-                                class="hover:underline">
-                                {{ server.name }}
-                            </Link>
-                        </TableCell>
-                        <TableCell>{{ server.host }}:{{ server.port }}</TableCell>
-                        <TableCell>
-                            <Loader2 v-if="!statuses[server.id]" class="h-4 w-4 animate-spin text-muted-foreground" />
-                            <Badge v-else-if="statuses[server.id]?.error" variant="destructive">Unreachable</Badge>
-                            <Badge v-else-if="statuses[server.id]?.running" variant="default" class="bg-green-600">
-                                Running
-                                <template v-if="statuses[server.id]?.players != null">
-                                    · {{ statuses[server.id].players }}<span v-if="statuses[server.id]?.maxPlayers">/{{
-                                        statuses[server.id].maxPlayers }}</span>
-                                </template>
-                            </Badge>
-                            <Badge v-else-if="statuses[server.id]?.installed" variant="secondary">Stopped</Badge>
-                            <Badge v-else variant="outline">Not Installed</Badge>
-                        </TableCell>
-                        <TableCell>
-                            <RadioGroupItem :value="server.id" />
-                        </TableCell>
-                        <TableCell class="text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" as-child title="Details">
-                                    <Link :href="ServerDetailController.index.url({ server: server.id })">
-                                        <Info class="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                                <Button variant="ghost" size="icon" as-child title="Files">
-                                    <Link :href="ServerFilesController.index.url({ server: server.id })">
-                                        <FolderOpen class="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                                <Button variant="ghost" size="icon" as-child title="Processes">
-                                    <Link :href="ServerProcessController.index.url({ server: server.id })">
-                                        <Activity class="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                                <Button variant="ghost" size="icon" @click="replicateServer(server)" title="Replicate">
-                                    <Copy class="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" as-child>
-                                    <Link :href="GameServerController.edit.url({ server: server.id })">
-                                        <Pencil class="h-4 w-4" />
-                                    </Link>
-                                </Button>
+        <template v-else>
+            <RadioGroup :model-value="activeServerId" @update:model-value="setActive($event as string)"
+                class="rounded-xl border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Host</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Current</TableHead>
+                            <TableHead class="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-for="server in servers" :key="server.id">
+                            <TableCell class="font-medium">
+                                <Link :href="ServerDetailController.index.url({ server: server.id })"
+                                    class="hover:underline">
+                                    {{ server.name }}
+                                </Link>
+                            </TableCell>
+                            <TableCell>{{ server.host }}:{{ server.port }}</TableCell>
+                            <TableCell>
+                                <Loader2 v-if="!statuses[server.id]"
+                                    class="h-4 w-4 animate-spin text-muted-foreground" />
+                                <Badge v-else-if="statuses[server.id]?.error" variant="destructive">Unreachable</Badge>
+                                <Badge v-else-if="statuses[server.id]?.running" variant="default" class="bg-green-600">
+                                    Running
+                                    <template v-if="statuses[server.id]?.players != null">
+                                        · {{ statuses[server.id].players }}<span
+                                            v-if="statuses[server.id]?.maxPlayers">/{{
+                                                statuses[server.id].maxPlayers }}</span>
+                                    </template>
+                                </Badge>
+                                <Badge v-else-if="statuses[server.id]?.installed" variant="secondary">Stopped</Badge>
+                                <Badge v-else variant="outline">Not Installed</Badge>
+                            </TableCell>
+                            <TableCell>
+                                <RadioGroupItem :value="server.id" />
+                            </TableCell>
+                            <TableCell class="text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <Button variant="ghost" size="icon" as-child title="Details">
+                                        <Link :href="ServerDetailController.index.url({ server: server.id })">
+                                            <Info class="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" as-child title="Files">
+                                        <Link :href="ServerFilesController.index.url({ server: server.id })">
+                                            <FolderOpen class="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" as-child title="Processes">
+                                        <Link :href="ServerProcessController.index.url({ server: server.id })">
+                                            <Activity class="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" @click="replicateServer(server)"
+                                        title="Replicate">
+                                        <Copy class="h-4 w-4" />
+                                    </Button>
+                                    <Button v-if="isTeamOwner && allTeams.length > 0" variant="ghost" size="icon"
+                                        @click="openTransferDialog(server)" title="Transfer to another team">
+                                        <ArrowRightLeft class="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" as-child>
+                                        <Link :href="GameServerController.edit.url({ server: server.id })">
+                                            <Pencil class="h-4 w-4" />
+                                        </Link>
+                                    </Button>
 
-                                <AlertDialog>
-                                    <AlertDialogTrigger as-child>
-                                        <Button variant="ghost" size="icon">
-                                            <Trash2 class="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Delete server?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will remove "{{ server.name }}" from the application. This action
-                                                cannot be undone.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction @click="deleteServer(server)">
-                                                Delete
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
-        </RadioGroup>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger as-child>
+                                            <Button variant="ghost" size="icon">
+                                                <Trash2 class="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete server?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will remove "{{ server.name }}" from the application. This
+                                                    action
+                                                    cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction @click="deleteServer(server)">
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </RadioGroup>
+        </template>
+
+        <Dialog v-model:open="transferDialogOpen">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Transfer Server</DialogTitle>
+                    <DialogDescription>
+                        Move "{{ transferServer?.name }}" to another team you belong to.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-2">
+                    <Label>Destination Team</Label>
+                    <Select v-model="transferTargetTeamId">
+                        <SelectTrigger class="w-full">
+                            <SelectValue placeholder="Select a team" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem v-for="t in allTeams" :key="t.id" :value="t.id">
+                                {{ t.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <DialogFooter>
+                    <Button @click="submitTransfer" :disabled="!transferTargetTeamId">
+                        Transfer
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\Integration;
+use App\Models\Team;
 use App\Models\User;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->user->createPersonalTeam();
     $this->actingAs($this->user);
+    $this->team = $this->user->currentTeam;
 });
 
 test('index renders integrations page', function () {
@@ -18,14 +21,25 @@ test('index renders integrations page', function () {
         );
 });
 
-test('index lists existing integrations', function () {
-    Integration::factory()->create(['provider' => 'curseforge']);
-    Integration::factory()->create(['provider' => 'openai']);
+test('index lists existing integrations for current team', function () {
+    Integration::factory()->create(['team_id' => $this->team->id, 'provider' => 'curseforge']);
+    Integration::factory()->create(['team_id' => $this->team->id, 'provider' => 'openai']);
 
     $this->get(route('integrations.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('integrations', 2)
+        );
+});
+
+test('index does not show integrations from other teams', function () {
+    $otherTeam = Team::factory()->create();
+    Integration::factory()->create(['team_id' => $otherTeam->id, 'provider' => 'curseforge']);
+
+    $this->get(route('integrations.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('integrations', [])
         );
 });
 
@@ -38,7 +52,7 @@ test('create renders the form', function () {
         );
 });
 
-test('store creates an integration', function () {
+test('store creates an integration for current team', function () {
     $data = [
         'provider' => 'curseforge',
         'label' => 'My CurseForge Key',
@@ -51,6 +65,7 @@ test('store creates an integration', function () {
     $this->assertDatabaseHas('integrations', [
         'provider' => 'curseforge',
         'label' => 'My CurseForge Key',
+        'team_id' => $this->team->id,
     ]);
 });
 
@@ -60,7 +75,7 @@ test('store validates required fields', function () {
 });
 
 test('edit renders the form with integration data', function () {
-    $integration = Integration::factory()->create(['provider' => 'openai']);
+    $integration = Integration::factory()->create(['team_id' => $this->team->id, 'provider' => 'openai']);
 
     $this->get(route('integrations.edit', $integration))
         ->assertOk()
@@ -73,6 +88,7 @@ test('edit renders the form with integration data', function () {
 
 test('update modifies an integration', function () {
     $integration = Integration::factory()->create([
+        'team_id' => $this->team->id,
         'provider' => 'openai',
         'label' => 'Old label',
     ]);
@@ -91,6 +107,7 @@ test('update modifies an integration', function () {
 
 test('update preserves api_key when left blank', function () {
     $integration = Integration::factory()->create([
+        'team_id' => $this->team->id,
         'provider' => 'claude',
         'api_key' => 'original-secret-key',
     ]);
@@ -106,7 +123,7 @@ test('update preserves api_key when left blank', function () {
 });
 
 test('destroy deletes an integration', function () {
-    $integration = Integration::factory()->create(['provider' => 'openai']);
+    $integration = Integration::factory()->create(['team_id' => $this->team->id, 'provider' => 'openai']);
 
     $this->delete(route('integrations.destroy', $integration))
         ->assertRedirect(route('integrations.index'));
@@ -121,8 +138,17 @@ test('integrations require authentication', function () {
         ->assertRedirect(route('login'));
 });
 
+test('cannot access integrations from another team', function () {
+    $otherTeam = Team::factory()->create();
+    $integration = Integration::factory()->create(['team_id' => $otherTeam->id, 'provider' => 'openai']);
+
+    $this->get(route('integrations.edit', $integration))
+        ->assertForbidden();
+});
+
 test('api_key is never exposed in index response', function () {
     Integration::factory()->create([
+        'team_id' => $this->team->id,
         'provider' => 'curseforge',
         'api_key' => 'super-secret-key',
     ]);

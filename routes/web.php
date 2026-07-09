@@ -10,6 +10,8 @@ use App\Http\Controllers\ServerDetailController;
 use App\Http\Controllers\ServerFilesController;
 use App\Http\Controllers\ServerProcessController;
 use App\Http\Controllers\ServerRconController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamInvitationController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -25,8 +27,23 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Teams
+    Route::resource('teams', TeamController::class)->except(['create', 'edit']);
+    Route::post('teams/{team}/switch', [TeamController::class, 'switchTeam'])->name('teams.switch');
+    Route::post('teams/{team}/leave', [TeamController::class, 'leave'])->name('teams.leave');
+    Route::patch('teams/{team}/members/{userId}/role', [TeamController::class, 'updateMemberRole'])->name('teams.update-member-role');
+    Route::delete('teams/{team}/members/{userId}', [TeamController::class, 'removeMember'])->name('teams.remove-member');
+
+    // Team Invitations
+    Route::post('teams/{team}/invitations', [TeamInvitationController::class, 'store'])->name('team-invitations.store');
+    Route::post('team-invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('team-invitations.accept');
+    Route::post('team-invitations/{invitation}/decline', [TeamInvitationController::class, 'decline'])->name('team-invitations.decline');
+    Route::delete('team-invitations/{invitation}', [TeamInvitationController::class, 'destroy'])->name('team-invitations.destroy');
+
+    // Servers
     Route::patch('servers/{server}/toggle-active', [GameServerController::class, 'toggleActive'])->name('servers.toggle-active');
     Route::post('servers/{server}/replicate', [GameServerController::class, 'replicate'])->name('servers.replicate');
+    Route::post('servers/{server}/transfer', [GameServerController::class, 'transfer'])->name('servers.transfer');
     Route::resource('servers', GameServerController::class)->except(['show']);
 
     Route::get('servers/active/detail', [ServerDetailController::class, 'active'])->name('servers.active-detail');
@@ -50,8 +67,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('servers/{server}/rcon', [ServerRconController::class, 'index'])->name('servers.rcon');
     Route::post('servers/{server}/rcon', [ServerRconController::class, 'execute'])->name('servers.rcon.execute');
 
+    // Integrations
     Route::resource('integrations', IntegrationController::class)->except(['show']);
 
+    // Profiles
     Route::resource('profiles', GameServerProfileController::class)->except(['show']);
     Route::patch('profiles/{profile}/toggle-active', [GameServerProfileController::class, 'toggleActive'])->name('profiles.toggle-active');
     Route::post('profiles/{profile}/replicate', [GameServerProfileController::class, 'replicate'])->name('profiles.replicate');

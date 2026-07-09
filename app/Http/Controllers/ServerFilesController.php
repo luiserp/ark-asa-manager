@@ -15,7 +15,7 @@ class ServerFilesController extends Controller
 {
     public function active(Request $request): Response|RedirectResponse
     {
-        $server = GameServer::active()->first();
+        $server = $request->user()->currentServer();
 
         if (! $server) {
             return to_route('servers.index');
@@ -26,6 +26,9 @@ class ServerFilesController extends Controller
 
     public function index(Request $request, GameServer $server): Response
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $path = $request->query('path', $server->server_dir);
         $path = $this->resolvePath($path, $server->server_dir);
 
@@ -53,6 +56,9 @@ class ServerFilesController extends Controller
 
     public function read(Request $request, GameServer $server): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $path = $request->query('path', '');
         $path = $this->resolvePath($path, $server->server_dir);
 
@@ -72,6 +78,9 @@ class ServerFilesController extends Controller
 
     public function write(Request $request, GameServer $server): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $data = $request->validate([
             'path' => ['required', 'string'],
             'content' => ['required', 'string'],
@@ -96,6 +105,9 @@ class ServerFilesController extends Controller
 
     public function download(Request $request, GameServer $server): StreamedResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($server->team_id === $team->id, 403);
+
         $path = $request->query('path', '');
         $path = $this->resolvePath($path, $server->server_dir);
 
@@ -118,9 +130,6 @@ class ServerFilesController extends Controller
         }, $filename);
     }
 
-    /**
-     * Resolve and sanitize path to prevent directory traversal outside base.
-     */
     private function resolvePath(string $path, string $basePath): string
     {
         $path = str_replace(['../', '..\\'], '', $path);

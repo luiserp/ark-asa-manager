@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\GameServer;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,6 +16,7 @@ class GameServerFactory extends Factory
     public function definition(): array
     {
         return [
+            'team_id' => Team::factory(),
             'name' => fake()->words(2, true).' Server',
             'host' => fake()->ipv4(),
             'port' => 22,
@@ -26,13 +28,7 @@ class GameServerFactory extends Factory
             'binary_path' => 'ShooterGame/Binaries/Win64/ArkAscendedServer.exe',
             'proton_path' => '/opt/glorious_eggroll/proton/bin/wine64',
             'steam_app_id' => '2430930',
-            'is_active' => false,
         ];
-    }
-
-    public function active(): static
-    {
-        return $this->state(fn () => ['is_active' => true]);
     }
 
     public function localDocker(): static

@@ -1,18 +1,21 @@
 <?php
 
 use App\Models\GameServer;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->user->createPersonalTeam();
     $this->actingAs($this->user);
+    $this->team = $this->user->currentTeam;
     Storage::fake('local');
 });
 
 test('index displays servers list', function () {
-    GameServer::factory()->count(3)->create();
+    GameServer::factory()->count(3)->create(['team_id' => $this->team->id]);
 
     $this->get(route('servers.index'))
         ->assertOk()
@@ -54,7 +57,7 @@ test('store creates a new server with uploaded key', function () {
     $this->assertDatabaseHas('game_servers', [
         'name' => 'Test Server',
         'host' => '192.168.1.100',
-        'is_active' => true,
+        'team_id' => $this->team->id,
     ]);
 
     Storage::disk('local')->assertExists('ssh-keys/'.$key->hashName());
@@ -66,7 +69,7 @@ test('store validates required fields', function () {
 });
 
 test('edit displays server form', function () {
-    $server = GameServer::factory()->create();
+    $server = GameServer::factory()->create(['team_id' => $this->team->id]);
 
     $this->get(route('servers.edit', $server))
         ->assertOk()
@@ -77,7 +80,7 @@ test('edit displays server form', function () {
 });
 
 test('update modifies the server without replacing key', function () {
-    $server = GameServer::factory()->create(['name' => 'Old Name']);
+    $server = GameServer::factory()->create(['team_id' => $this->team->id, 'name' => 'Old Name']);
 
     $data = [
         'name' => 'New Name',
@@ -102,7 +105,7 @@ test('update modifies the server without replacing key', function () {
 });
 
 test('update replaces ssh key when new file uploaded', function () {
-    $server = GameServer::factory()->create();
+    $server = GameServer::factory()->create(['team_id' => $this->team->id]);
     $newKey = UploadedFile::fake()->create('new_key', 1);
 
     $data = [
@@ -126,7 +129,7 @@ test('update replaces ssh key when new file uploaded', function () {
 });
 
 test('destroy deletes the server', function () {
-    $server = GameServer::factory()->create();
+    $server = GameServer::factory()->create(['team_id' => $this->team->id]);
 
     $this->delete(route('servers.destroy', $server))
         ->assertRedirect(route('servers.index'));
@@ -134,64 +137,33 @@ test('destroy deletes the server', function () {
     $this->assertDatabaseMissing('game_servers', ['id' => $server->id]);
 });
 
-test('first server is automatically set as active', function () {
+test('first server is automatically set as current for user', function () {
     $key = UploadedFile::fake()->create('id_ed25519', 1);
 
     $data = [
-        ...GameServer::factory()->make()->toArray(),
+        ...GameServer::factory()->make(['team_id' => $this->team->id])->toArray(),
         'ssh_key' => $key,
     ];
 
     $this->post(route('servers.store'), $data);
 
-    expect(GameServer::first()->is_active)->toBeTrue();
+    $server = GameServer::first();
+    expect($this->user->fresh()->currentServer()?->id)->toBe($server->id);
 });
 
-test('second server is not automatically set as active', function () {
-    GameServer::factory()->active()->create();
-    $key = UploadedFile::fake()->create('id_ed25519', 1);
+test('toggle active switches the current server for the user', function () {
+    $server1 = GameServer::factory()->create(['team_id' => $this->team->id]);
+    $server2 = GameServer::factory()->create(['team_id' => $this->team->id]);
+    $this->user->switchServer($server1);
 
-    $data = [
-        ...GameServer::factory()->make()->toArray(),
-        'ssh_key' => $key,
-    ];
-
-    $this->post(route('servers.store'), $data);
-
-    expect(GameServer::latest('id')->first()->is_active)->toBeFalse();
-});
-
-test('toggle active activates an inactive server', function () {
-    $server = GameServer::factory()->create(['is_active' => false]);
-
-    $this->patch(route('servers.toggle-active', $server))
+    $this->patch(route('servers.toggle-active', $server2))
         ->assertRedirect();
 
-    expect($server->fresh()->is_active)->toBeTrue();
-});
-
-test('toggle active deactivates an active server', function () {
-    $server = GameServer::factory()->active()->create();
-
-    $this->patch(route('servers.toggle-active', $server))
-        ->assertRedirect();
-
-    expect($server->fresh()->is_active)->toBeFalse();
-});
-
-test('toggle active deactivates other servers when activating', function () {
-    $active = GameServer::factory()->active()->create();
-    $inactive = GameServer::factory()->create(['is_active' => false]);
-
-    $this->patch(route('servers.toggle-active', $inactive))
-        ->assertRedirect();
-
-    expect($inactive->fresh()->is_active)->toBeTrue();
-    expect($active->fresh()->is_active)->toBeFalse();
+    expect($this->user->fresh()->currentServer()?->id)->toBe($server2->id);
 });
 
 test('replicate duplicates a server', function () {
-    $server = GameServer::factory()->active()->create(['name' => 'Production']);
+    $server = GameServer::factory()->create(['team_id' => $this->team->id, 'name' => 'Production']);
 
     $this->post(route('servers.replicate', $server))
         ->assertRedirect(route('servers.index'));
@@ -199,6 +171,14 @@ test('replicate duplicates a server', function () {
     $clone = GameServer::where('name', 'Production (Copy)')->first();
 
     expect($clone)->not->toBeNull();
-    expect($clone->is_active)->toBeFalse();
     expect($clone->host)->toBe($server->host);
+    expect($clone->team_id)->toBe($this->team->id);
+});
+
+test('cannot access servers from another team', function () {
+    $otherTeam = Team::factory()->create();
+    $otherServer = GameServer::factory()->create(['team_id' => $otherTeam->id]);
+
+    $this->get(route('servers.edit', $otherServer))
+        ->assertForbidden();
 });

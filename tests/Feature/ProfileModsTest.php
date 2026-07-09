@@ -7,8 +7,11 @@ use App\Models\User;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->user->createPersonalTeam();
     $this->actingAs($this->user);
-    $this->server = GameServer::factory()->active()->create();
+    $this->team = $this->user->currentTeam;
+    $this->server = GameServer::factory()->create(['team_id' => $this->team->id]);
+    $this->user->switchServer($this->server);
     $this->profile = GameServerProfile::factory()->active()->create([
         'game_server_id' => $this->server->id,
     ]);
@@ -119,6 +122,7 @@ test('store requires authentication', function () {
 
 test('mods index includes hasCurseforgeIntegration flag when integration exists', function () {
     Integration::factory()->create([
+        'team_id' => $this->team->id,
         'provider' => 'curseforge',
         'is_active' => true,
     ]);
@@ -153,6 +157,7 @@ test('search returns error when no curseforge integration exists', function () {
 
 test('search validates query parameters', function () {
     Integration::factory()->create([
+        'team_id' => $this->team->id,
         'provider' => 'curseforge',
         'is_active' => true,
     ]);

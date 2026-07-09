@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch, onUnmounted } from 'vue';
-import { Activity, BookOpen, Blocks, ChevronsUpDown, Circle, FileCode, FolderGit2, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server, Terminal } from '@lucide/vue';
+import { Activity, Blocks, ChevronsUpDown, Circle, FileCode, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server, Terminal, Users } from '@lucide/vue';
 import echo from '@/echo';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
@@ -11,10 +11,9 @@ import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailC
 import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
 import ServerProcessController from '@/actions/App/Http/Controllers/ServerProcessController';
 import ServerRconController from '@/actions/App/Http/Controllers/ServerRconController';
+import TeamController from '@/actions/App/Http/Controllers/TeamController';
+import IntegrationController from '@/actions/App/Http/Controllers/IntegrationController';
 import AppLogo from '@/components/AppLogo.vue';
-import NavFooter from '@/components/NavFooter.vue';
-import NavMain from '@/components/NavMain.vue';
-import NavUser from '@/components/NavUser.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,7 +26,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
     SidebarGroup,
     SidebarHeader,
     SidebarMenu,
@@ -35,7 +33,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import IntegrationController from '@/actions/App/Http/Controllers/IntegrationController';
 import { dashboard } from '@/routes';
 import { index as serversIndex } from '@/routes/servers';
 import { index as profilesIndex } from '@/routes/profiles';
@@ -68,7 +65,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: dashboard(),
         icon: LayoutGrid,
     },
-
+    {
+        title: 'Teams',
+        href: TeamController.index.url(),
+        icon: Users,
+    },
 ]);
 
 const infrastructureNavItems = computed<NavItem[]>(() => [
@@ -188,19 +189,6 @@ onUnmounted(() => {
     unsubscribeFromStatus();
 });
 
-const footerNavItems: NavItem[] = [
-    // {
-    //     title: 'Repository',
-    //     href: 'https://github.com/laravel/vue-starter-kit',
-    //     icon: FolderGit2,
-    // },
-    // {
-    //     title: 'Documentation',
-    //     href: 'https://laravel.com/docs/starter-kits#vue',
-    //     icon: BookOpen,
-    // },
-];
-
 function switchServer(value: unknown) {
     const serverId = String(value);
     if (activeServer.value?.id === serverId) return;
@@ -233,7 +221,7 @@ function switchProfile(value: unknown) {
         </SidebarHeader>
 
         <SidebarContent>
-            <SidebarGroup class="px-2 py-0">
+            <SidebarGroup class="mt-4 px-2 py-0">
                 <SidebarGroupLabel>Platform</SidebarGroupLabel>
                 <SidebarMenu>
                     <SidebarMenuItem v-for="item in mainNavItems" :key="item.title">
@@ -248,7 +236,7 @@ function switchProfile(value: unknown) {
                 </SidebarMenu>
             </SidebarGroup>
 
-            <SidebarGroup class="px-2 py-0">
+            <SidebarGroup class="mt-4 px-2 py-0">
                 <SidebarGroupLabel>Infrastructure</SidebarGroupLabel>
                 <SidebarMenu>
                     <SidebarMenuItem v-for="item in infrastructureNavItems" :key="item.title">
@@ -276,7 +264,8 @@ function switchProfile(value: unknown) {
                                         <TooltipProvider v-if="activeServer">
                                             <Tooltip>
                                                 <TooltipTrigger as-child>
-                                                    <Circle class="h-2.5 w-2.5 shrink-0 fill-current" :class="statusColor" />
+                                                    <Circle class="h-2.5 w-2.5 shrink-0 fill-current"
+                                                        :class="statusColor" />
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right">
                                                     {{ statusLabel }}
@@ -352,10 +341,6 @@ function switchProfile(value: unknown) {
             </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
-            <NavUser />
-        </SidebarFooter>
     </Sidebar>
     <slot />
 </template>

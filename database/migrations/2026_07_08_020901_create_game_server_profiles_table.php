@@ -23,8 +23,12 @@ return new class extends Migration
             $table->string('admin_password')->nullable();
             $table->string('server_password')->nullable();
             $table->unsignedInteger('max_players')->default(70);
+            $table->boolean('battleye_enabled')->default(true);
 
             $table->json('extra_args')->nullable();
+            $table->longText('game_user_settings_ini')->nullable();
+            $table->longText('game_ini')->nullable();
+            $table->json('mods')->nullable();
 
             $table->boolean('is_active')->default(false);
             $table->timestamps();

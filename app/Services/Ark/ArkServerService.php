@@ -36,12 +36,6 @@ class ArkServerService
 
     public static function make(): static
     {
-        $default = GameServer::active()->first();
-
-        if ($default) {
-            return static::forServer($default);
-        }
-
         return new static(
             ssh: SshService::make(),
             serverDir: config('ark.server_dir'),

@@ -3,6 +3,7 @@
 namespace App\Services\CurseForge;
 
 use App\Models\Integration;
+use App\Models\Team;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -19,11 +20,16 @@ class CurseForgeService
         private readonly string $apiKey,
     ) {}
 
-    public static function make(): static
+    public static function make(?Team $team = null): static
     {
-        $integration = Integration::where('provider', 'curseforge')
-            ->where('is_active', true)
-            ->first();
+        $query = Integration::where('provider', 'curseforge')
+            ->where('is_active', true);
+
+        if ($team) {
+            $query->where('team_id', $team->id);
+        }
+
+        $integration = $query->first();
 
         if (! $integration || empty($integration->api_key)) {
             throw new \RuntimeException('No active CurseForge integration found. Please add one in Settings > Integrations.');

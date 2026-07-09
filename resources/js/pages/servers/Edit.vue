@@ -18,7 +18,6 @@ interface GameServer {
     binary_path: string;
     proton_path: string;
     steam_app_id: string;
-    is_active: boolean;
 }
 
 const props = defineProps<{

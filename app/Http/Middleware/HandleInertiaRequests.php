@@ -2,59 +2,64 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\GameServer;
 use App\Models\GameServerProfile;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
     /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
      * @var string
      */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
     /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
      * @return array<string, mixed>
      */
     public function share(Request $request): array
     {
-        $activeServer = GameServer::active()->withCount('profiles')->first();
+        /** @var User|null $user */
+        $user = $request->user();
+        $team = $user?->currentTeam;
+        $activeServer = $user?->currentServer();
         $activeProfile = $activeServer
             ? GameServerProfile::where('game_server_id', $activeServer->id)->active()->first()
             : null;
+
+        $teamServers = $team ? $team->servers()->select('id', 'name')->get() : collect();
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'currentTeam' => $team ? [
+                'id' => $team->id,
+                'name' => $team->name,
+                'personal_team' => $team->personal_team,
+                'is_owner' => $user ? $team->isOwner($user) : false,
+            ] : null,
+            'teams' => $user
+                ? $user->teams()->select('teams.id', 'teams.name', 'teams.personal_team')->get()->map(fn ($t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'personal_team' => $t->personal_team,
+                ])
+                : [],
             'counts' => [
-                'servers' => GameServer::count(),
-                'profiles' => $activeServer?->profiles_count ?? 0,
+                'servers' => $teamServers->count(),
+                'profiles' => $activeServer ? GameServerProfile::where('game_server_id', $activeServer->id)->count() : 0,
                 'mods' => $activeProfile ? count($activeProfile->mods ?? []) : 0,
             ],
-            'servers' => GameServer::select('id', 'name')->get(),
+            'servers' => $teamServers,
             'activeServer' => $activeServer ? [
                 'id' => $activeServer->id,
                 'name' => $activeServer->name,

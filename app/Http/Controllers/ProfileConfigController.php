@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GameServer;
 use App\Models\GameServerProfile;
 use App\Services\Ark\ArkServerService;
 use App\Services\SshService;
@@ -31,8 +30,11 @@ class ProfileConfigController extends Controller
         return "{$serverDir}/ShooterGame/Saved/Config/WindowsServer/{$file}";
     }
 
-    public function index(GameServerProfile $profile): Response
+    public function index(Request $request, GameServerProfile $profile): Response
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         return Inertia::render('profiles/Config', [
             'profile' => $profile->only('id', 'name'),
             'server' => $profile->gameServer->only('id', 'name'),
@@ -40,9 +42,9 @@ class ProfileConfigController extends Controller
         ]);
     }
 
-    public function active(): Response|RedirectResponse
+    public function active(Request $request): Response|RedirectResponse
     {
-        $server = GameServer::active()->first();
+        $server = $request->user()->currentServer();
         $profile = $server
             ? GameServerProfile::where('game_server_id', $server->id)->active()->first()
             : null;
@@ -58,11 +60,11 @@ class ProfileConfigController extends Controller
         ]);
     }
 
-    /**
-     * Load stored config content from the database.
-     */
-    public function pull(GameServerProfile $profile, Request $request): JsonResponse
+    public function pull(Request $request, GameServerProfile $profile): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         $file = $request->validate(['file' => ['required', 'string']])['file'];
 
         if (! in_array($file, self::ALLOWED_FILES, true)) {
@@ -74,11 +76,11 @@ class ProfileConfigController extends Controller
         return response()->json(['content' => $profile->{$column} ?? '']);
     }
 
-    /**
-     * Save config content to the database for this profile.
-     */
-    public function push(GameServerProfile $profile, Request $request): JsonResponse
+    public function push(Request $request, GameServerProfile $profile): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         $data = $request->validate([
             'file' => ['required', 'string'],
             'content' => ['required', 'string'],
@@ -94,11 +96,11 @@ class ProfileConfigController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /**
-     * Import config content from the remote server into the database.
-     */
-    public function importFromServer(GameServerProfile $profile, Request $request): JsonResponse
+    public function importFromServer(Request $request, GameServerProfile $profile): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         $file = $request->validate(['file' => ['required', 'string']])['file'];
 
         if (! in_array($file, self::ALLOWED_FILES, true)) {
@@ -120,11 +122,11 @@ class ProfileConfigController extends Controller
         }
     }
 
-    /**
-     * Deploy stored configs to the remote server (only if server is stopped).
-     */
-    public function apply(GameServerProfile $profile): JsonResponse
+    public function apply(Request $request, GameServerProfile $profile): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         $server = $profile->gameServer;
         $arkService = ArkServerService::forServer($server);
         $status = $arkService->status();

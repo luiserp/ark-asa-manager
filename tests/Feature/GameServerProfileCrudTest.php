@@ -7,12 +7,15 @@ use App\Services\Ark\ArkServerService;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->user->createPersonalTeam();
     $this->actingAs($this->user);
-    $this->server = GameServer::factory()->active()->create();
+    $this->team = $this->user->currentTeam;
+    $this->server = GameServer::factory()->create(['team_id' => $this->team->id]);
+    $this->user->switchServer($this->server);
 });
 
 test('default profile is created when server is created', function () {
-    $server = GameServer::factory()->create();
+    $server = GameServer::factory()->create(['team_id' => $this->team->id]);
 
     expect($server->profiles)->toHaveCount(1);
     expect($server->profiles->first()->name)->toBe('Default');
@@ -26,7 +29,7 @@ test('index displays profiles for the active server', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('profiles/Index')
-            ->has('profiles', 3) // 2 + the auto-created default
+            ->has('profiles', 3)
         );
 });
 
@@ -193,8 +196,8 @@ test('replicate duplicates a profile to the same server', function () {
     expect($clone->map)->toBe($profile->map);
 });
 
-test('replicate duplicates a profile to a different server', function () {
-    $otherServer = GameServer::factory()->create();
+test('replicate duplicates a profile to a different server in same team', function () {
+    $otherServer = GameServer::factory()->create(['team_id' => $this->team->id]);
     $profile = GameServerProfile::factory()->create([
         'game_server_id' => $this->server->id,
         'name' => 'Hardcore',

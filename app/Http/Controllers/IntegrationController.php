@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Integration;
+use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,10 +18,18 @@ class IntegrationController extends Controller
         'other' => 'Other',
     ];
 
-    public function index(): Response
+    private function currentTeam(Request $request): Team
     {
+        return $request->user()->currentTeam ?? abort(403);
+    }
+
+    public function index(Request $request): Response
+    {
+        $team = $this->currentTeam($request);
+
         return Inertia::render('integrations/Index', [
-            'integrations' => Integration::orderBy('provider')
+            'integrations' => $team->integrations()
+                ->orderBy('provider')
                 ->get()
                 ->map(fn (Integration $i) => [
                     'id' => $i->id,
@@ -43,21 +52,26 @@ class IntegrationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $team = $this->currentTeam($request);
+
         $data = $request->validate([
             'provider' => ['required', 'string', 'max:50'],
             'label' => ['nullable', 'string', 'max:255'],
             'api_key' => ['required', 'string', 'max:1000'],
         ]);
 
-        Integration::create($data);
+        $team->integrations()->create($data);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Integration added.']);
 
         return redirect()->route('integrations.index');
     }
 
-    public function edit(Integration $integration): Response
+    public function edit(Request $request, Integration $integration): Response
     {
+        $team = $this->currentTeam($request);
+        abort_unless($integration->team_id === $team->id, 403);
+
         return Inertia::render('integrations/Edit', [
             'integration' => [
                 'id' => $integration->id,
@@ -70,8 +84,11 @@ class IntegrationController extends Controller
         ]);
     }
 
-    public function update(Integration $integration, Request $request): RedirectResponse
+    public function update(Request $request, Integration $integration): RedirectResponse
     {
+        $team = $this->currentTeam($request);
+        abort_unless($integration->team_id === $team->id, 403);
+
         $data = $request->validate([
             'provider' => ['required', 'string', 'max:50'],
             'label' => ['nullable', 'string', 'max:255'],
@@ -90,8 +107,11 @@ class IntegrationController extends Controller
         return redirect()->route('integrations.index');
     }
 
-    public function destroy(Integration $integration): RedirectResponse
+    public function destroy(Request $request, Integration $integration): RedirectResponse
     {
+        $team = $this->currentTeam($request);
+        abort_unless($integration->team_id === $team->id, 403);
+
         $integration->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Integration removed.']);

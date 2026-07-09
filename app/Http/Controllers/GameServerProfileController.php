@@ -5,34 +5,42 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GameServerProfileRequest;
 use App\Models\GameServer;
 use App\Models\GameServerProfile;
+use App\Models\Team;
 use App\Services\Ark\ArkServerService;
 use App\Services\SshService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class GameServerProfileController extends Controller
 {
-    private function activeServer(): GameServer
+    private function currentTeam(Request $request): Team
     {
-        return GameServer::active()->firstOrFail();
+        return $request->user()->currentTeam ?? abort(403);
     }
 
-    public function index(): Response
+    private function activeServer(Request $request): GameServer
     {
-        $server = $this->activeServer();
+        return $request->user()->currentServer() ?? abort(404, 'No active server selected.');
+    }
+
+    public function index(Request $request): Response
+    {
+        $server = $this->activeServer($request);
+        $team = $this->currentTeam($request);
 
         return Inertia::render('profiles/Index', [
             'server' => $server,
             'profiles' => $server->profiles()->latest()->get(),
-            'servers' => GameServer::select('id', 'name')->get(),
+            'servers' => $team->servers()->select('id', 'name')->get(),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('profiles/Create', [
-            'server' => $this->activeServer(),
+            'server' => $this->activeServer($request),
             'defaults' => config('ark.profile_defaults'),
             'maps' => config('ark.maps'),
         ]);
@@ -40,7 +48,7 @@ class GameServerProfileController extends Controller
 
     public function store(GameServerProfileRequest $request): RedirectResponse
     {
-        $server = $this->activeServer();
+        $server = $this->activeServer($request);
         $data = $request->validated();
 
         if (! $server->profiles()->exists()) {
@@ -54,10 +62,10 @@ class GameServerProfileController extends Controller
         return to_route('profiles.index');
     }
 
-    public function edit(GameServerProfile $profile): Response
+    public function edit(Request $request, GameServerProfile $profile): Response
     {
         return Inertia::render('profiles/Edit', [
-            'server' => $this->activeServer(),
+            'server' => $this->activeServer($request),
             'profile' => $profile,
             'maps' => config('ark.maps'),
         ]);
@@ -72,13 +80,16 @@ class GameServerProfileController extends Controller
         return to_route('profiles.index');
     }
 
-    public function toggleActive(GameServerProfile $profile): RedirectResponse
+    public function toggleActive(Request $request, GameServerProfile $profile): RedirectResponse
     {
         if ($profile->is_active) {
             return back();
         }
 
         $server = $profile->gameServer;
+        $team = $this->currentTeam($request);
+        abort_unless($server->team_id === $team->id, 403);
+
         $arkService = ArkServerService::forServer($server);
         $status = $arkService->status();
 
@@ -127,10 +138,11 @@ class GameServerProfileController extends Controller
         }
     }
 
-    public function replicate(GameServerProfile $profile): RedirectResponse
+    public function replicate(Request $request, GameServerProfile $profile): RedirectResponse
     {
-        $targetServerId = request()->input('game_server_id', $profile->game_server_id);
-        $targetServer = GameServer::findOrFail($targetServerId);
+        $team = $this->currentTeam($request);
+        $targetServerId = $request->input('game_server_id', $profile->game_server_id);
+        $targetServer = $team->servers()->findOrFail($targetServerId);
 
         $clone = $profile->replicate(['is_active']);
         $clone->game_server_id = $targetServer->id;

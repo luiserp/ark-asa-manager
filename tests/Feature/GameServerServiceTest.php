@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\GameServer;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\Ark\ArkServerService;
 use App\Services\SshService;
@@ -16,16 +17,6 @@ test('GameServer model can be created with factory', function () {
         ->port->toBe(22)
         ->username->toBe('ark-sa')
         ->steam_app_id->toBe('2430930');
-});
-
-test('GameServer active scope returns only active servers', function () {
-    GameServer::factory()->count(3)->create();
-    GameServer::factory()->active()->create(['name' => 'Primary']);
-
-    $active = GameServer::active()->get();
-
-    expect($active)->toHaveCount(1)
-        ->first()->name->toBe('Primary');
 });
 
 test('GameServer factory has localDocker state', function () {
@@ -65,18 +56,7 @@ test('ArkServerService::forServer creates instance from GameServer model', funct
     expect($ark)->toBeInstanceOf(ArkServerService::class);
 });
 
-test('ArkServerService::make falls back to config when no default server exists', function () {
-    $ark = ArkServerService::make();
-
-    expect($ark)->toBeInstanceOf(ArkServerService::class);
-});
-
-test('ArkServerService::make uses active GameServer when one exists', function () {
-    GameServer::factory()->active()->create([
-        'host' => '192.168.1.100',
-        'ssh_key_path' => base_path('ssh/id_ed25519'),
-    ]);
-
+test('ArkServerService::make falls back to config when no server provided', function () {
     $ark = ArkServerService::make();
 
     expect($ark)->toBeInstanceOf(ArkServerService::class);
@@ -84,6 +64,7 @@ test('ArkServerService::make uses active GameServer when one exists', function (
 
 test('dashboard displays servers list', function () {
     $user = User::factory()->create();
+    $user->createPersonalTeam();
 
     $this->actingAs($user)
         ->get(route('dashboard'))
@@ -94,9 +75,13 @@ test('dashboard displays servers list', function () {
         );
 });
 
-test('dashboard shows each configured server', function () {
+test('dashboard shows servers from user team', function () {
     $user = User::factory()->create();
+    $user->createPersonalTeam();
+    $team = $user->currentTeam;
+
     GameServer::factory()->count(2)->create([
+        'team_id' => $team->id,
         'ssh_key_path' => base_path('ssh/id_ed25519'),
     ]);
 
@@ -106,5 +91,24 @@ test('dashboard shows each configured server', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
             ->has('servers', 2)
+        );
+});
+
+test('dashboard does not show servers from other teams', function () {
+    $user = User::factory()->create();
+    $user->createPersonalTeam();
+
+    $otherTeam = Team::factory()->create();
+    GameServer::factory()->count(3)->create([
+        'team_id' => $otherTeam->id,
+        'ssh_key_path' => base_path('ssh/id_ed25519'),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Dashboard')
+            ->has('servers', 0)
         );
 });

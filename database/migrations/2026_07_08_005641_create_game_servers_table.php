@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('game_servers', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->foreignUlid('team_id')->constrained()->cascadeOnDelete();
             $table->string('name');
 
             $table->string('host');
@@ -23,10 +24,6 @@ return new class extends Migration
             $table->string('binary_path')->default('ShooterGame/Binaries/Win64/ArkAscendedServer.exe');
             $table->string('proton_path')->default('/opt/glorious_eggroll/proton/bin/wine64');
             $table->string('steam_app_id')->default('2430930');
-
-            $table->string('map')->default('TheIsland_WP');
-            $table->json('game_options')->nullable();
-            $table->boolean('is_default')->default(false);
 
             $table->timestamps();
         });

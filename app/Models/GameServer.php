@@ -3,15 +3,16 @@
 namespace App\Models;
 
 use Database\Factories\GameServerFactory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
+ * @property string $team_id
  * @property string $name
  * @property string $host
  * @property int $port
@@ -23,7 +24,6 @@ use Illuminate\Support\Carbon;
  * @property string $binary_path
  * @property string $proton_path
  * @property string $steam_app_id
- * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -53,6 +53,7 @@ class GameServer extends Model
     }
 
     protected $fillable = [
+        'team_id',
         'name',
         'host',
         'port',
@@ -64,23 +65,21 @@ class GameServer extends Model
         'binary_path',
         'proton_path',
         'steam_app_id',
-        'is_active',
     ];
 
     protected function casts(): array
     {
         return [
             'port' => 'integer',
-            'is_active' => 'boolean',
         ];
     }
 
     /**
-     * @param  Builder<self>  $query
+     * @return BelongsTo<Team, $this>
      */
-    public function scopeActive(Builder $query): void
+    public function team(): BelongsTo
     {
-        $query->where('is_active', true);
+        return $this->belongsTo(Team::class);
     }
 
     /**

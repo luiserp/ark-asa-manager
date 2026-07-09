@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GameServer;
 use App\Models\GameServerProfile;
-use App\Models\Integration;
 use App\Services\CurseForge\CurseForgeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,22 +12,26 @@ use Inertia\Response;
 
 class ProfileModsController extends Controller
 {
-    public function index(GameServerProfile $profile): Response
+    public function index(Request $request, GameServerProfile $profile): Response
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         return Inertia::render('profiles/Mods', [
             'profile' => $profile->only('id', 'name'),
             'server' => $profile->gameServer->only('id', 'name'),
             'mods' => $profile->mods ?? [],
             'curseforgeUrl' => config('ark.curseforge_url'),
-            'hasCurseforgeIntegration' => Integration::where('provider', 'curseforge')
+            'hasCurseforgeIntegration' => $team->integrations()
+                ->where('provider', 'curseforge')
                 ->where('is_active', true)
                 ->exists(),
         ]);
     }
 
-    public function active(): Response|RedirectResponse
+    public function active(Request $request): Response|RedirectResponse
     {
-        $server = GameServer::active()->first();
+        $server = $request->user()->currentServer();
         $profile = $server
             ? GameServerProfile::where('game_server_id', $server->id)->active()->first()
             : null;
@@ -38,24 +40,30 @@ class ProfileModsController extends Controller
             return to_route('profiles.index');
         }
 
+        $team = $request->user()->currentTeam;
+
         return Inertia::render('profiles/Mods', [
             'profile' => $profile->only('id', 'name'),
             'server' => $profile->gameServer->only('id', 'name'),
             'mods' => $profile->mods ?? [],
             'curseforgeUrl' => config('ark.curseforge_url'),
-            'hasCurseforgeIntegration' => Integration::where('provider', 'curseforge')
-                ->where('is_active', true)
-                ->exists(),
+            'hasCurseforgeIntegration' => $team
+                ? $team->integrations()
+                    ->where('provider', 'curseforge')
+                    ->where('is_active', true)
+                    ->exists()
+                : false,
         ]);
     }
 
     /**
-     * Save the mod list to the profile.
-     *
      * @param  array<int, array{mod_id: string, name: string, is_passive: bool, is_enabled: bool}>  $mods
      */
-    public function store(GameServerProfile $profile, Request $request): JsonResponse
+    public function store(Request $request, GameServerProfile $profile): JsonResponse
     {
+        $team = $request->user()->currentTeam ?? abort(403);
+        abort_unless($profile->gameServer->team_id === $team->id, 403);
+
         $data = $request->validate([
             'mods' => ['present', 'array'],
             'mods.*.mod_id' => ['required', 'string', 'max:20'],
@@ -69,10 +77,7 @@ class ProfileModsController extends Controller
         return response()->json(['success' => true, 'mods' => $profile->mods]);
     }
 
-    /**
-     * Search CurseForge for ARK mods.
-     */
-    public function search(GameServerProfile $profile, Request $request): JsonResponse
+    public function search(Request $request, GameServerProfile $profile): JsonResponse
     {
         $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
@@ -80,7 +85,8 @@ class ProfileModsController extends Controller
         ]);
 
         try {
-            $service = CurseForgeService::make();
+            $team = $request->user()->currentTeam;
+            $service = CurseForgeService::make($team);
 
             $params = [
                 'pageSize' => 12,
@@ -102,10 +108,7 @@ class ProfileModsController extends Controller
         }
     }
 
-    /**
-     * Fetch CurseForge details for installed mods (cached).
-     */
-    public function details(GameServerProfile $profile): JsonResponse
+    public function details(Request $request, GameServerProfile $profile): JsonResponse
     {
         $mods = $profile->mods ?? [];
 
@@ -114,7 +117,8 @@ class ProfileModsController extends Controller
         }
 
         try {
-            $service = CurseForgeService::make();
+            $team = $request->user()->currentTeam;
+            $service = CurseForgeService::make($team);
             $modIds = array_map(fn ($m) => (int) $m['mod_id'], $mods);
             $details = $service->getModsByIds($modIds);
 

@@ -26,6 +26,13 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            currentTeam: { id: string; name: string; personal_team: boolean; is_owner: boolean } | null;
+            teams: { id: string; name: string; personal_team: boolean }[];
+            servers: { id: string; name: string }[];
+            activeServer: { id: string; name: string } | null;
+            profiles: { id: string; name: string }[];
+            activeProfile: { id: string; name: string } | null;
+            counts: { servers: number; profiles: number; mods: number };
             [key: string]: unknown;
         };
     }

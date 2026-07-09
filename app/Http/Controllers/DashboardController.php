@@ -4,13 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\GameServer;
 use App\Services\Ark\ArkServerService;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $servers = GameServer::all()->map(function (GameServer $server) {
+        $team = $request->user()->currentTeam;
+
+        if (! $team) {
+            return Inertia::render('Dashboard', ['servers' => []]);
+        }
+
+        $currentServer = $request->user()->currentServer();
+
+        $servers = $team->servers()->get()->map(function (GameServer $server) use ($currentServer) {
             try {
                 $ark = ArkServerService::forServer($server);
                 $status = $ark->status();
@@ -19,7 +28,7 @@ class DashboardController extends Controller
                     'id' => $server->id,
                     'name' => $server->name,
                     'host' => $server->host,
-                    'is_active' => $server->is_active,
+                    'is_current' => $currentServer?->id === $server->id,
                     'connected' => true,
                     'running' => $status['running'],
                     'pid' => $status['pid'],
@@ -31,7 +40,7 @@ class DashboardController extends Controller
                     'id' => $server->id,
                     'name' => $server->name,
                     'host' => $server->host,
-                    'is_active' => $server->is_active,
+                    'is_current' => $currentServer?->id === $server->id,
                     'connected' => false,
                     'running' => false,
                     'pid' => null,

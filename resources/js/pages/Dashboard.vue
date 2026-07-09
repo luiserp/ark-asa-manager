@@ -17,7 +17,7 @@ interface ServerStatus {
     id: string;
     name: string;
     host: string;
-    is_active: boolean;
+    is_current: boolean;
     connected: boolean;
     running: boolean;
     pid: number | null;
@@ -66,10 +66,10 @@ defineProps<{
                         <h3 class="font-semibold">{{ server.name }}</h3>
                     </div>
                     <span
-                        v-if="server.is_active"
+                        v-if="server.is_current"
                         class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                     >
-                        Active
+                        Current
                     </span>
                 </div>
 

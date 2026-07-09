@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\GameServer;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Redis;
 
@@ -9,6 +10,11 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 
 Broadcast::channel('server-status.{serverId}', function ($user, $serverId) {
     if (! $user) {
+        return false;
+    }
+
+    $server = GameServer::find($serverId);
+    if (! $server || ! $user->belongsToTeam($server->team)) {
         return false;
     }
 
@@ -23,6 +29,11 @@ Broadcast::channel('server-status.{serverId}', function ($user, $serverId) {
 
 Broadcast::channel('server.{serverId}', function ($user, $serverId) {
     if (! $user) {
+        return null;
+    }
+
+    $server = GameServer::find($serverId);
+    if (! $server || ! $user->belongsToTeam($server->team)) {
         return null;
     }
 
