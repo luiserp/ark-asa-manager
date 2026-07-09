@@ -3,7 +3,9 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GameServerController;
 use App\Http\Controllers\GameServerProfileController;
+use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\ProfileConfigController;
+use App\Http\Controllers\ProfileModsController;
 use App\Http\Controllers\ServerDetailController;
 use App\Http\Controllers\ServerFilesController;
 use App\Http\Controllers\ServerProcessController;
@@ -40,6 +42,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('servers/{server}/processes', [ServerProcessController::class, 'index'])->name('servers.processes');
     Route::delete('servers/{server}/processes', [ServerProcessController::class, 'kill'])->name('servers.processes.kill');
 
+    Route::resource('integrations', IntegrationController::class)->except(['show']);
+
     Route::resource('profiles', GameServerProfileController::class)->except(['show']);
     Route::patch('profiles/{profile}/toggle-active', [GameServerProfileController::class, 'toggleActive'])->name('profiles.toggle-active');
     Route::post('profiles/{profile}/replicate', [GameServerProfileController::class, 'replicate'])->name('profiles.replicate');
@@ -47,6 +51,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('profiles/{profile}/config', [ProfileConfigController::class, 'index'])->name('profiles.config');
     Route::get('profiles/{profile}/config/pull', [ProfileConfigController::class, 'pull'])->name('profiles.config.pull');
     Route::post('profiles/{profile}/config/push', [ProfileConfigController::class, 'push'])->name('profiles.config.push');
+    Route::post('profiles/{profile}/config/apply', [ProfileConfigController::class, 'apply'])->name('profiles.config.apply');
+    Route::post('profiles/{profile}/config/import', [ProfileConfigController::class, 'importFromServer'])->name('profiles.config.import');
+
+    Route::get('profiles/{profile}/mods', [ProfileModsController::class, 'index'])->name('profiles.mods');
+    Route::post('profiles/{profile}/mods', [ProfileModsController::class, 'store'])->name('profiles.mods.store');
+    Route::get('profiles/{profile}/mods/search', [ProfileModsController::class, 'search'])->name('profiles.mods.search');
+    Route::get('profiles/{profile}/mods/details', [ProfileModsController::class, 'details'])->name('profiles.mods.details');
 });
 
 require __DIR__.'/settings.php';

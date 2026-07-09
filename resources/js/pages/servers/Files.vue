@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
 import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor';
 import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
 import Heading from '@/components/Heading.vue';
@@ -114,12 +115,10 @@ const editorFile = ref<FileEntry | null>(null);
 const editorContent = ref('');
 const editorLoading = ref(false);
 const editorSaving = ref(false);
-const editorError = ref('');
 
 async function openEditor(entry: FileEntry) {
     editorFile.value = entry;
     editorContent.value = '';
-    editorError.value = '';
     editorLoading.value = true;
     editorOpen.value = true;
 
@@ -130,12 +129,12 @@ async function openEditor(entry: FileEntry) {
         });
         const data = await res.json();
         if (!res.ok) {
-            editorError.value = data.error || 'Failed to read file';
+            toast.error(data.error || 'Failed to read file');
         } else {
             editorContent.value = data.content;
         }
     } catch (e: any) {
-        editorError.value = e.message;
+        toast.error(e.message);
     } finally {
         editorLoading.value = false;
     }
@@ -144,7 +143,6 @@ async function openEditor(entry: FileEntry) {
 async function saveEditor() {
     if (!editorFile.value) return;
     editorSaving.value = true;
-    editorError.value = '';
 
     try {
         const url = ServerFilesController.write.url({ server: props.server.id });
@@ -163,12 +161,13 @@ async function saveEditor() {
         });
         const data = await res.json();
         if (!res.ok) {
-            editorError.value = data.error || 'Failed to save file';
+            toast.error(data.error || 'Failed to save file');
         } else {
+            toast.success('File saved.');
             editorOpen.value = false;
         }
     } catch (e: any) {
-        editorError.value = e.message;
+        toast.error(e.message);
     } finally {
         editorSaving.value = false;
     }
@@ -305,9 +304,6 @@ async function saveEditor() {
                         <Save v-else class="mr-2 h-4 w-4" />
                         Save
                     </Button>
-                </div>
-                <div v-if="editorError" class="mt-2 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-                    {{ editorError }}
                 </div>
             </SheetHeader>
 

@@ -19,6 +19,10 @@ class ArkServerService
 
     public static function forServer(GameServer $server): static
     {
+        if (app()->bound(static::class)) {
+            return app(static::class);
+        }
+
         return new static(
             ssh: SshService::forServer($server),
             serverDir: $server->server_dir,
@@ -103,16 +107,18 @@ class ArkServerService
      */
     public function start(string $map = 'TheIsland_WP', array $options = [], array $flags = []): array
     {
-        $serverArgs = $this->buildServerArgs($map, $options, $flags);
+        $urlArgs = $this->buildUrlArgs($map, $options);
+        $flagsStr = $flags ? ' '.implode(' ', $flags) : '';
 
         $command = sprintf(
-            'mkdir -p %s && cd %s && nohup xvfb-run --auto-servernum %s %s/%s %s > %s/server_$(date +%%Y%%m%%d_%%H%%M%%S).log 2>&1 & echo $!',
+            'mkdir -p %s && cd %s && nohup xvfb-run --auto-servernum %s %s/%s "%s"%s > %s/server_$(date +%%Y%%m%%d_%%H%%M%%S).log 2>&1 & echo $!',
             $this->logsDir,
             $this->serverDir,
             $this->protonPath,
             $this->serverDir,
             $this->binaryPath,
-            $serverArgs,
+            $urlArgs,
+            $flagsStr,
             $this->logsDir,
         );
 
@@ -148,6 +154,31 @@ class ArkServerService
         sleep(2);
 
         return $this->start($map, $options, $flags);
+    }
+
+    /**
+     * Build the URL portion of server args (map?option=value...).
+     *
+     * @param  array<string, string>  $options
+     */
+    private function buildUrlArgs(string $map, array $options): string
+    {
+        $defaults = [
+            'SessionName' => 'ArkServer',
+            'Port' => '7777',
+            'QueryPort' => '27015',
+            'RCONEnabled' => 'True',
+            'RCONPort' => '27020',
+        ];
+
+        $merged = array_merge($defaults, $options);
+
+        $args = $map.'?listen';
+        foreach ($merged as $key => $value) {
+            $args .= "?{$key}={$value}";
+        }
+
+        return $args;
     }
 
     /**
@@ -296,36 +327,5 @@ class ArkServerService
         $kb = trim($result['stdout']);
 
         return is_numeric($kb) ? (int) ((int) $kb / 1024) : null;
-    }
-
-    /**
-     * @param  array<string, string>  $options
-     */
-    /**
-     * @param  array<string, string>  $options
-     * @param  array<int, string>  $flags
-     */
-    private function buildServerArgs(string $map, array $options, array $flags = []): string
-    {
-        $defaults = [
-            'SessionName' => 'ArkServer',
-            'Port' => '7777',
-            'QueryPort' => '27015',
-            'RCONEnabled' => 'True',
-            'RCONPort' => '27020',
-        ];
-
-        $merged = array_merge($defaults, $options);
-
-        $args = $map.'?listen';
-        foreach ($merged as $key => $value) {
-            $args .= "?{$key}={$value}";
-        }
-
-        if ($flags) {
-            $args .= ' '.implode(' ', $flags);
-        }
-
-        return $args;
     }
 }

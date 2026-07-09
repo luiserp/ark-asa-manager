@@ -24,6 +24,9 @@ use Illuminate\Support\Carbon;
  * @property int $max_players
  * @property bool $battleye_enabled
  * @property array<string, string>|null $extra_args
+ * @property string|null $game_user_settings_ini
+ * @property string|null $game_ini
+ * @property array<int, array{mod_id: string, name: string, is_passive: bool, is_enabled: bool}>|null $mods
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -46,6 +49,9 @@ class GameServerProfile extends Model
         'max_players',
         'battleye_enabled',
         'extra_args',
+        'game_user_settings_ini',
+        'game_ini',
+        'mods',
         'is_active',
     ];
 
@@ -58,6 +64,7 @@ class GameServerProfile extends Model
             'max_players' => 'integer',
             'battleye_enabled' => 'boolean',
             'extra_args' => 'array',
+            'mods' => 'array',
             'is_active' => 'boolean',
             'admin_password' => 'encrypted',
             'server_password' => 'encrypted',

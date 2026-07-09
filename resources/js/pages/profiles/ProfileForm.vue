@@ -124,8 +124,7 @@ const battleyeEnabled = ref(props.values.battleye_enabled ?? true);
             <div class="flex items-center gap-3">
                 <Switch
                     id="battleye_enabled"
-                    :checked="battleyeEnabled"
-                    @update:checked="battleyeEnabled = $event"
+                    v-model="battleyeEnabled"
                 />
                 <input type="hidden" name="battleye_enabled" :value="battleyeEnabled ? '1' : '0'" />
                 <Label for="battleye_enabled" class="cursor-pointer">

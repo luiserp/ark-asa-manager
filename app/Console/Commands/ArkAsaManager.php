@@ -416,6 +416,29 @@ class ArkAsaManager extends Command
                 $flags[] = '-NoBattlEye';
             }
 
+            if ($profile?->mods) {
+                $enabledMods = collect($profile->mods)
+                    ->filter(fn (array $mod): bool => ($mod['is_enabled'] ?? true));
+
+                $activeMods = $enabledMods
+                    ->filter(fn (array $mod): bool => ! $mod['is_passive'])
+                    ->pluck('mod_id')
+                    ->implode(',');
+
+                $passiveMods = $enabledMods
+                    ->filter(fn (array $mod): bool => $mod['is_passive'])
+                    ->pluck('mod_id')
+                    ->implode(',');
+
+                if ($activeMods) {
+                    $flags[] = "-mods={$activeMods}";
+                }
+
+                if ($passiveMods) {
+                    $flags[] = "-passivemods={$passiveMods}";
+                }
+            }
+
             $result = $ark->start($map, $options, $flags);
 
             broadcast(new ServerTaskOutput(

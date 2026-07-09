@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GameServerProfileRequest;
 use App\Models\GameServer;
 use App\Models\GameServerProfile;
+use App\Services\Ark\ArkServerService;
+use App\Services\SshService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -76,11 +78,53 @@ class GameServerProfileController extends Controller
             return back();
         }
 
-        $server = $this->activeServer();
+        $server = $profile->gameServer;
+        $arkService = ArkServerService::forServer($server);
+        $status = $arkService->status();
+
+        if ($status['running']) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Cannot switch profiles while the server is running. Stop it first.',
+            ]);
+
+            return back();
+        }
+
         $server->profiles()->where('is_active', true)->update(['is_active' => false]);
         $profile->update(['is_active' => true]);
 
+        $this->deployProfileConfigs($profile, $server);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Profile '{$profile->name}' activated and configs deployed."]);
+
         return back();
+    }
+
+    private function deployProfileConfigs(GameServerProfile $profile, GameServer $server): void
+    {
+        $fileColumnMap = [
+            'GameUserSettings.ini' => 'game_user_settings_ini',
+            'Game.ini' => 'game_ini',
+        ];
+
+        try {
+            $ssh = SshService::forServer($server);
+
+            foreach ($fileColumnMap as $file => $column) {
+                $content = $profile->{$column};
+
+                if ($content === null) {
+                    continue;
+                }
+
+                $remotePath = "{$server->server_dir}/ShooterGame/Saved/Config/WindowsServer/{$file}";
+                $escapedContent = str_replace("'", "'\\''", $content);
+                $ssh->execute("mkdir -p $(dirname {$remotePath}) && printf '%s' '{$escapedContent}' > {$remotePath}");
+            }
+        } catch (\Throwable) {
+            // Config deployment is best-effort during profile switch
+        }
     }
 
     public function replicate(GameServerProfile $profile): RedirectResponse

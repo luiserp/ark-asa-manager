@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import { Editor as MonacoEditor } from '@guolao/vue-monaco-editor';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { index as profilesIndex } from '@/routes/profiles';
-import { Download, Upload, Loader2 } from '@lucide/vue';
+import { Download, Save, Loader2, ServerCog, HardDriveDownload } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -27,18 +39,27 @@ const props = defineProps<{
 const page = usePage();
 const activeFile = ref(props.files[0]);
 const editorContent = ref('');
-const pulling = ref(false);
-const pushing = ref(false);
-const error = ref('');
-const lastSynced = ref('');
+const loading = ref(false);
+const saving = ref(false);
+const importing = ref(false);
+const applying = ref(false);
+const dirty = ref(false);
+
+const confirmImport = ref(false);
+const confirmReload = ref(false);
+const confirmSave = ref(false);
+const confirmApply = ref(false);
 
 const csrfToken = (page.props as any)._token
     ?? document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content
     ?? '';
 
-async function pullFile() {
-    pulling.value = true;
-    error.value = '';
+function markDirty() {
+    dirty.value = true;
+}
+
+async function loadFromDb() {
+    loading.value = true;
     try {
         const url = ProfileConfigController.pull.url(
             { profile: props.profile.id },
@@ -49,22 +70,20 @@ async function pullFile() {
         });
         const data = await res.json();
         if (!res.ok) {
-            error.value = data.error || 'Failed to pull file';
-            editorContent.value = data.content ?? '';
+            toast.error(data.error || 'Failed to load config');
         } else {
             editorContent.value = data.content;
-            lastSynced.value = new Date().toLocaleTimeString();
+            dirty.value = false;
         }
     } catch (e: any) {
-        error.value = e.message;
+        toast.error(e.message);
     } finally {
-        pulling.value = false;
+        loading.value = false;
     }
 }
 
-async function pushFile() {
-    pushing.value = true;
-    error.value = '';
+async function saveToDb() {
+    saving.value = true;
     try {
         const url = ProfileConfigController.push.url({ profile: props.profile.id });
         const res = await fetch(url, {
@@ -82,24 +101,81 @@ async function pushFile() {
         });
         const data = await res.json();
         if (!res.ok) {
-            error.value = data.error || 'Failed to push file';
+            toast.error(data.error || 'Failed to save config');
         } else {
-            lastSynced.value = new Date().toLocaleTimeString();
+            dirty.value = false;
+            toast.success('Config saved to profile.');
         }
     } catch (e: any) {
-        error.value = e.message;
+        toast.error(e.message);
     } finally {
-        pushing.value = false;
+        saving.value = false;
+    }
+}
+
+async function importFromServer() {
+    importing.value = true;
+    try {
+        const url = ProfileConfigController.importFromServer.url({ profile: props.profile.id });
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ file: activeFile.value }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            toast.error(data.error || 'Failed to import from server');
+        } else {
+            editorContent.value = data.content;
+            dirty.value = false;
+            toast.success('Config imported from server and saved to profile.');
+        }
+    } catch (e: any) {
+        toast.error(e.message);
+    } finally {
+        importing.value = false;
+    }
+}
+
+async function applyToServer() {
+    applying.value = true;
+    try {
+        const url = ProfileConfigController.apply.url({ profile: props.profile.id });
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            toast.error(data.error || 'Failed to apply config to server');
+        } else {
+            const deployed = data.deployed?.join(', ') || 'none';
+            toast.success(`Config deployed to server: ${deployed}`);
+        }
+    } catch (e: any) {
+        toast.error(e.message);
+    } finally {
+        applying.value = false;
     }
 }
 
 watch(activeFile, () => {
     editorContent.value = '';
-    pullFile();
+    dirty.value = false;
+    loadFromDb();
 });
 
 onMounted(() => {
-    pullFile();
+    loadFromDb();
 });
 </script>
 
@@ -108,26 +184,63 @@ onMounted(() => {
 
     <div class="flex h-full flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
-            <Heading :title="`Config: ${profile.name}`" :description="`Edit configuration files on ${server.name}`" />
+            <Heading :title="`Config: ${profile.name}`" description="Edit and manage configuration files for this profile." />
             <div class="flex items-center gap-2">
-                <Badge v-if="lastSynced" variant="secondary">
-                    Last sync: {{ lastSynced }}
-                </Badge>
-                <Button variant="outline" size="sm" :disabled="pulling" @click="pullFile">
-                    <Loader2 v-if="pulling" class="mr-2 h-4 w-4 animate-spin" />
-                    <Download v-else class="mr-2 h-4 w-4" />
-                    Pull
-                </Button>
-                <Button size="sm" :disabled="pushing" @click="pushFile">
-                    <Loader2 v-if="pushing" class="mr-2 h-4 w-4 animate-spin" />
-                    <Upload v-else class="mr-2 h-4 w-4" />
-                    Push
-                </Button>
-            </div>
-        </div>
+                <Badge v-if="dirty" variant="destructive">Unsaved</Badge>
+                <TooltipProvider :delay-duration="500">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button variant="outline" size="sm" class="cursor-pointer" :disabled="importing" @click="confirmImport = true">
+                                <Loader2 v-if="importing" class="mr-2 h-4 w-4 animate-spin" />
+                                <HardDriveDownload v-else class="mr-2 h-4 w-4" />
+                                Import from Server
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Pull the current config file from the remote server and save it to this profile</p>
+                        </TooltipContent>
+                    </Tooltip>
 
-        <div v-if="error" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-            {{ error }}
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button variant="outline" size="sm" class="cursor-pointer" :disabled="loading" @click="confirmReload = true">
+                                <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+                                <Download v-else class="mr-2 h-4 w-4" />
+                                Reload
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Reload the saved config from this profile (discard unsaved changes)</p>
+                        </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button size="sm" class="cursor-pointer" :disabled="saving || !dirty" @click="confirmSave = true">
+                                <Loader2 v-if="saving" class="mr-2 h-4 w-4 animate-spin" />
+                                <Save v-else class="mr-2 h-4 w-4" />
+                                Save
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Save changes to this profile's stored config</p>
+                        </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <Button variant="secondary" size="sm" class="cursor-pointer" :disabled="applying || dirty" @click="confirmApply = true">
+                                <Loader2 v-if="applying" class="mr-2 h-4 w-4 animate-spin" />
+                                <ServerCog v-else class="mr-2 h-4 w-4" />
+                                Apply to Server
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Deploy this profile's configs to the server (server must be stopped)</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
         </div>
 
         <div class="flex gap-1 border-b pb-1">
@@ -160,7 +273,72 @@ onMounted(() => {
                     automaticLayout: true,
                 }"
                 class="h-full w-full"
+                @change="markDirty"
             />
         </div>
     </div>
+
+    <!-- Import from Server Confirmation -->
+    <AlertDialog v-model:open="confirmImport">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Import from Server?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will pull <strong>{{ activeFile }}</strong> from the remote server and overwrite the config stored in this profile. Any unsaved editor changes will be lost.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction @click="importFromServer">Import</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Reload Confirmation -->
+    <AlertDialog v-model:open="confirmReload">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Reload Config?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will reload <strong>{{ activeFile }}</strong> from the profile's stored config. Any unsaved changes in the editor will be discarded.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction @click="loadFromDb">Reload</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Save Confirmation -->
+    <AlertDialog v-model:open="confirmSave">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Save Config?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will save the current editor content as <strong>{{ activeFile }}</strong> for this profile. The previous stored version will be overwritten.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction @click="saveToDb">Save</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Apply to Server Confirmation -->
+    <AlertDialog v-model:open="confirmApply">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Apply Config to Server?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will deploy all stored config files (GameUserSettings.ini and Game.ini) from this profile to the server. The server must be stopped. Existing files on the server will be overwritten.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction @click="applyToServer">Apply</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 </template>

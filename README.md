@@ -186,3 +186,7 @@ Other containers wait for setup to complete, then start their command. Dependenc
 ├── docker-compose.ark.yml      # ARK server stack
 └── .env.example
 ```
+
+
+`docker compose exec app rm -rf /var/www/html/storage/.setup-lock /var/www/html/storage/.setup-ready`
+`php artisan wayfinder:generate --with-form --no-interaction`

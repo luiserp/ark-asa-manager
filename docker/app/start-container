@@ -5,18 +5,36 @@ set -e
 LOCK="/var/www/html/storage/.setup-lock"
 READY="/var/www/html/storage/.setup-ready"
 
-# Use a lock to prevent concurrent installs across containers
+# Invalidate stale ready flag if vendor or node_modules are empty
+if [ -f "$READY" ]; then
+    if [ ! -f /var/www/html/vendor/autoload.php ] || [ ! -d /var/www/html/node_modules/.package-lock.json ]; then
+        rm -f "$READY"
+    fi
+fi
+
 if mkdir "$LOCK" 2>/dev/null; then
+    trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+    echo "Running setup: composer install, npm install, migrate, build..."
     composer install --no-interaction
     npm install
     php /var/www/html/artisan migrate --force
     npm run build
     touch "$READY"
-    rmdir "$LOCK"
 else
     echo "Waiting for dependencies to be installed..."
-    while [ ! -f "$READY" ]; do sleep 1; done
+    timeout=300
+    elapsed=0
+    while [ ! -f "$READY" ]; do
+        sleep 2
+        elapsed=$((elapsed + 2))
+        if [ $elapsed -ge $timeout ]; then
+            echo "ERROR: Setup did not complete within ${timeout}s. Removing stale lock and retrying..."
+            rm -rf "$LOCK"
+            exec "$0" "$@"
+        fi
+    done
+    echo "Dependencies ready."
 fi
 
-# Execute the command passed by docker-compose
 exec gosu app "$@"

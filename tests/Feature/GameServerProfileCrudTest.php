@@ -3,6 +3,7 @@
 use App\Models\GameServer;
 use App\Models\GameServerProfile;
 use App\Models\User;
+use App\Services\Ark\ArkServerService;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -116,6 +117,10 @@ test('destroy deletes a profile', function () {
 });
 
 test('toggle active activates an inactive profile', function () {
+    $this->mock(ArkServerService::class, function ($mock) {
+        $mock->shouldReceive('status')->andReturn(['running' => false, 'pid' => null, 'uptime' => null]);
+    });
+
     $profile = GameServerProfile::factory()->create([
         'game_server_id' => $this->server->id,
         'is_active' => false,
@@ -128,6 +133,10 @@ test('toggle active activates an inactive profile', function () {
 });
 
 test('toggle active deactivates other profiles when activating', function () {
+    $this->mock(ArkServerService::class, function ($mock) {
+        $mock->shouldReceive('status')->andReturn(['running' => false, 'pid' => null, 'uptime' => null]);
+    });
+
     $active = GameServerProfile::factory()->active()->create(['game_server_id' => $this->server->id]);
     $inactive = GameServerProfile::factory()->create([
         'game_server_id' => $this->server->id,
@@ -141,8 +150,24 @@ test('toggle active deactivates other profiles when activating', function () {
     expect($active->fresh()->is_active)->toBeFalse();
 });
 
-test('toggle active deactivates an active profile', function () {
+test('toggle active is a no-op for an already active profile', function () {
     $profile = GameServerProfile::factory()->active()->create(['game_server_id' => $this->server->id]);
+
+    $this->patch(route('profiles.toggle-active', $profile))
+        ->assertRedirect();
+
+    expect($profile->fresh()->is_active)->toBeTrue();
+});
+
+test('toggle active is blocked when server is running', function () {
+    $this->mock(ArkServerService::class, function ($mock) {
+        $mock->shouldReceive('status')->andReturn(['running' => true, 'pid' => 1234, 'uptime' => '01:30:00']);
+    });
+
+    $profile = GameServerProfile::factory()->create([
+        'game_server_id' => $this->server->id,
+        'is_active' => false,
+    ]);
 
     $this->patch(route('profiles.toggle-active', $profile))
         ->assertRedirect();

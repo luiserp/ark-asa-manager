@@ -61,6 +61,8 @@ return [
         'subscription_check_interval' => (int) env('ARK_MANAGER_SUBSCRIPTION_CHECK_INTERVAL', 30),
     ],
 
+    'curseforge_url' => env('ARK_CURSEFORGE_URL', 'https://www.curseforge.com/ark-survival-ascended/search?page=1&pageSize=20&sortBy=relevancy'),
+
     'maps' => [
         'TheIsland_WP' => 'The Island',
         'TheCenter_WP' => 'The Center',

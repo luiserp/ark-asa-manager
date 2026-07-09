@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { Activity, BookOpen, ChevronsUpDown, FileCode, FolderGit2, FolderOpen, Info, LayoutGrid, Layers, Server } from '@lucide/vue';
+import { Activity, BookOpen, Blocks, ChevronsUpDown, FileCode, FolderGit2, FolderOpen, Info, KeyRound, LayoutGrid, Layers, Server } from '@lucide/vue';
 import GameServerController from '@/actions/App/Http/Controllers/GameServerController';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
+import ProfileModsController from '@/actions/App/Http/Controllers/ProfileModsController';
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
 import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
 import ServerProcessController from '@/actions/App/Http/Controllers/ServerProcessController';
@@ -31,6 +32,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import IntegrationController from '@/actions/App/Http/Controllers/IntegrationController';
 import { dashboard } from '@/routes';
 import { index as serversIndex } from '@/routes/servers';
 import { index as profilesIndex } from '@/routes/profiles';
@@ -52,7 +54,7 @@ const servers = computed(() => page.props.servers as ServerOption[]);
 const activeServer = computed(() => page.props.activeServer as ServerOption | null);
 const profiles = computed(() => page.props.profiles as ProfileOption[]);
 const activeProfile = computed(() => page.props.activeProfile as ProfileOption | null);
-const counts = computed(() => page.props.counts as { servers: number; profiles: number });
+const counts = computed(() => page.props.counts as { servers: number; profiles: number; mods: number });
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
@@ -65,6 +67,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: serversIndex(),
         icon: Server,
         badge: counts.value.servers,
+    },
+    {
+        title: 'Integrations',
+        href: IntegrationController.index.url(),
+        icon: KeyRound,
     },
 ]);
 
@@ -99,24 +106,30 @@ const profileNavItems = computed<NavItem[]>(() => {
     if (!activeProfile.value) return [];
     return [
         {
-            title: 'Config Files',
+            title: 'Config',
             href: ProfileConfigController.index.url({ profile: activeProfile.value.id }),
             icon: FileCode,
+        },
+        {
+            title: 'Mods',
+            href: ProfileModsController.index.url({ profile: activeProfile.value.id }),
+            icon: Blocks,
+            badge: counts.value.mods,
         },
     ];
 });
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
+    // {
+    //     title: 'Repository',
+    //     href: 'https://github.com/laravel/vue-starter-kit',
+    //     icon: FolderGit2,
+    // },
+    // {
+    //     title: 'Documentation',
+    //     href: 'https://laravel.com/docs/starter-kits#vue',
+    //     icon: BookOpen,
+    // },
 ];
 
 function switchServer(value: unknown) {
@@ -222,6 +235,7 @@ function switchProfile(value: unknown) {
                                 <span>{{ item.title }}</span>
                             </Link>
                         </SidebarMenuButton>
+                        <SidebarMenuBadge v-if="item.badge !== undefined">{{ item.badge }}</SidebarMenuBadge>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroup>

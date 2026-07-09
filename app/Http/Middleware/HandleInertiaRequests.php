@@ -52,6 +52,7 @@ class HandleInertiaRequests extends Middleware
             'counts' => [
                 'servers' => GameServer::count(),
                 'profiles' => $activeServer?->profiles_count ?? 0,
+                'mods' => $activeProfile ? count($activeProfile->mods ?? []) : 0,
             ],
             'servers' => GameServer::select('id', 'name')->get(),
             'activeServer' => $activeServer ? [
