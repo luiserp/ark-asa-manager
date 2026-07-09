@@ -869,7 +869,7 @@ onMounted(() => {
     </AlertDialog>
 
     <!-- Remove Confirmation -->
-    <AlertDialog :open="confirmRemoveIndex !== null" @update:open="confirmRemoveIndex = null">
+    <AlertDialog :open="confirmRemoveIndex !== null">
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Remove Mod?</AlertDialogTitle>
@@ -880,7 +880,7 @@ onMounted(() => {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel @click="confirmRemoveIndex = null">Cancel</AlertDialogCancel>
                 <AlertDialogAction v-if="confirmRemoveIndex !== null" @click="removeMod(confirmRemoveIndex)">Remove</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

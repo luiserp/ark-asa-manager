@@ -293,16 +293,25 @@ class ArkServerService
      */
     public function systemMetrics(): array
     {
-        $command = "grep 'cpu ' /proc/stat | awk '{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {printf \"%.1f\", usage}'; echo; cat /sys/fs/cgroup/memory.current 2>/dev/null || cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || echo 0; cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || echo 0; ss -u -a 2>/dev/null | grep -c ':7777' || echo 0";
+        $command = implode('; ', [
+            "grep 'cpu ' /proc/stat | awk '{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {printf \"%.1f\", usage}'",
+            'echo',
+            'cat /sys/fs/cgroup/memory.current 2>/dev/null || cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || echo 0',
+            'cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || echo 0',
+            "ss -u -a 2>/dev/null | grep -c ':7777' || echo 0",
+            "(grep '^inactive_file ' /sys/fs/cgroup/memory.stat 2>/dev/null || grep '^total_inactive_file ' /sys/fs/cgroup/memory/memory.stat 2>/dev/null || echo 'x 0') | awk '{print \$2}'",
+        ]);
 
         $result = $this->ssh->execute($command);
         $lines = explode("\n", trim($result['stdout']));
 
         $cpu = isset($lines[0]) && is_numeric($lines[0]) ? (float) $lines[0] : null;
 
-        $usedBytes = isset($lines[1]) && is_numeric($lines[1]) ? (int) $lines[1] : null;
+        $rawBytes = isset($lines[1]) && is_numeric($lines[1]) ? (int) $lines[1] : null;
         $maxBytes = isset($lines[2]) && is_numeric($lines[2]) ? (int) $lines[2] : null;
+        $cacheBytes = isset($lines[4]) && is_numeric($lines[4]) ? (int) $lines[4] : 0;
 
+        $usedBytes = $rawBytes !== null ? max(0, $rawBytes - $cacheBytes) : null;
         $memoryUsed = $usedBytes !== null ? (int) ($usedBytes / 1048576) : null;
 
         if ($maxBytes !== null && $maxBytes > 0 && $maxBytes < 9000000000000000000) {

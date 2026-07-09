@@ -37,4 +37,7 @@ else
     echo "Dependencies ready."
 fi
 
+rm -f "$READY"
+rm -rf "$LOCK"
+
 exec gosu app "$@"

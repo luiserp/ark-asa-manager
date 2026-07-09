@@ -489,6 +489,9 @@ class ArkAsaManager extends Command
             $ark = $this->getConnection($serverId);
             $result = $ark->stop();
 
+            $this->serverRunning[$serverId] = false;
+            unset($this->lastLogHash[$serverId], $this->lastConsoleHash[$serverId]);
+
             broadcast(new ServerTaskOutput(
                 serverId: $serverId,
                 task: 'stop',
@@ -513,6 +516,8 @@ class ArkAsaManager extends Command
             ));
         } catch (\Throwable $e) {
             $this->error("[STOP] Error for server {$serverId}: {$e->getMessage()}");
+            $this->serverRunning[$serverId] = false;
+            unset($this->lastLogHash[$serverId], $this->lastConsoleHash[$serverId]);
             $this->reconnect($serverId);
 
             broadcast(new ServerTaskOutput(
