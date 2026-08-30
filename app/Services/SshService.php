@@ -89,9 +89,10 @@ class SshService
         $stderr = $this->connection->getStdError();
         $exitCode = $this->connection->getExitStatus();
 
-        if ($timeout !== null) {
-            $this->connection->setTimeout(10);
-        }
+        // Force disconnect to release the channel. phpseclib3 can leave
+        // channels open when timeouts or background processes are involved,
+        // causing "Please close the channel" errors on the next exec().
+        $this->disconnect();
 
         return [
             'stdout' => trim($stdout),

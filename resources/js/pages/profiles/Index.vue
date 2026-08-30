@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import GameServerProfileController from '@/actions/App/Http/Controllers/GameServerProfileController';
+import DynamicConfigController from '@/actions/App/Http/Controllers/DynamicConfigController';
 import ProfileConfigController from '@/actions/App/Http/Controllers/ProfileConfigController';
 import ProfileModsController from '@/actions/App/Http/Controllers/ProfileModsController';
 import Heading from '@/components/Heading.vue';
@@ -45,7 +46,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { index, create } from '@/routes/profiles';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Pencil, Trash2, Copy, FileCode, Blocks, HelpCircle } from '@lucide/vue';
+import { Plus, Pencil, Trash2, Copy, FileCode, Blocks, Sliders, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -180,6 +181,11 @@ function confirmReplicate() {
                                 <Button variant="ghost" size="icon" as-child title="Config">
                                     <Link :href="ProfileConfigController.index.url({ profile: profile.id })">
                                         <FileCode class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" as-child title="Dynamic Config">
+                                    <Link :href="DynamicConfigController.index.url({ profile: profile.id })">
+                                        <Sliders class="h-4 w-4" />
                                     </Link>
                                 </Button>
                                 <Button variant="ghost" size="icon" as-child title="Mods">

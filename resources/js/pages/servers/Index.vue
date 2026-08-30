@@ -6,6 +6,7 @@ import GameServerController from '@/actions/App/Http/Controllers/GameServerContr
 import ServerDetailController from '@/actions/App/Http/Controllers/ServerDetailController';
 import ServerFilesController from '@/actions/App/Http/Controllers/ServerFilesController';
 import ServerProcessController from '@/actions/App/Http/Controllers/ServerProcessController';
+import ServerRconController from '@/actions/App/Http/Controllers/ServerRconController';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,7 @@ import {
 } from '@/components/ui/dialog';
 import { index, create } from '@/routes/servers';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity, ArrowRightLeft, HelpCircle } from '@lucide/vue';
+import { Plus, Pencil, Trash2, Copy, Info, Loader2, FolderOpen, Activity, Terminal, ArrowRightLeft, HelpCircle } from '@lucide/vue';
 
 defineOptions({
     layout: {
@@ -244,6 +245,11 @@ function submitTransfer() {
                                     <Button variant="ghost" size="icon" as-child title="Processes">
                                         <Link :href="ServerProcessController.index.url({ server: server.id })">
                                             <Activity class="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" as-child title="RCON">
+                                        <Link :href="ServerRconController.index.url({ server: server.id })">
+                                            <Terminal class="h-4 w-4" />
                                         </Link>
                                     </Button>
                                     <Button variant="ghost" size="icon" @click="replicateServer(server)"

@@ -171,6 +171,29 @@
     }
 }
 
+.app-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.app-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.app-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+}
+
+.app-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
 .terminal-scroll::-webkit-scrollbar {
     width: 8px;
     height: 8px;
